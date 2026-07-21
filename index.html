@@ -292,7 +292,7 @@
       <div class="stat-card">
         <div class="stat-title">Auto Refresh</div>
         <div class="stat-value" style="font-size: 16px; margin-top: 8px;">
-          <span class="status-indicator"></span>Active (30s)
+          <span class="status-indicator"></span>Active (5m)
         </div>
       </div>
     </div>
@@ -516,10 +516,10 @@
       fetchLiveMatches();
     }
 
-    // Auto Refresh live data every 30 seconds
+    // Auto Refresh live data every 5 minutes (300000 ms)
     setInterval(() => {
       if (activeApiKey) fetchLiveMatches();
-    }, 30000);
+    }, 300000);
 
     // Initial load for demo display
     populateLeagues();
