@@ -97,7 +97,7 @@ cat << 'EOF' > index.html
     <div class="app-header">
       <div class="app-title">
         <h1>⚡ LIVE OVER 0.5 GOAL ROLLOVER ASSISTANT</h1>
-        <p>Target: 12 Sequential Live Rollovers (API Rate-Limit Protected)</p>
+        <p>Target: 12 Sequential Live Rollovers (CORS-Bypass Enabled)</p>
       </div>
       <div class="header-actions">
         <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
@@ -142,7 +142,7 @@ cat << 'EOF' > index.html
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <span>⚠️ <strong>Filter Bypass Mode:</strong> Showing raw live matches currently at <strong style="color:var(--accent-green);">0-0 (1st Half, 1'-45')</strong>.</span>
               <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleStrictBypass()">
-                <span id="strictBypassLabel">Toggle All Global Live Matches</span>
+                <span id="strictBypassLabel">Show All Global Live Matches</span>
               </button>
             </div>
           </div>
@@ -237,7 +237,7 @@ cat << 'EOF' > index.html
       settings: { minMin: 10, maxMin: 35, minOdds: 1.10, maxOdds: 1.25, minConf: 65, apiKey: "" },
       isOffline: false,
       bypassFilters: false,
-      showAbsoluteAll: false, // false = 0-0 1st half only, true = literally all games
+      showAbsoluteAll: false,
       currentStep: 1,
       activeBet: null,
       history: [],
@@ -334,7 +334,9 @@ cat << 'EOF' > index.html
         bypassBtn.className = "btn btn-success";
         bypassBtn.innerText = "🔒 Apply Strategy Filters";
         notice.style.display = "block";
-        strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All Global Live Matches";
+        if (strictLabel) {
+          strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All Global Live Matches";
+        }
       } else {
         bypassBtn.className = "btn btn-purple";
         bypassBtn.innerText = "🔓 Raw Matches (0-0 1st Half)";
@@ -375,8 +377,12 @@ cat << 'EOF' > index.html
       statusBadge.innerText = "🔄 Fetching Live Matches...";
       statusBadge.style.color = "var(--accent-blue)";
 
+      // Primary Target: API-Football live endpoint through CORS proxy
+      const targetUrl = "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=all";
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
       try {
-        const response = await fetch("https://api-football-v1.p.rapidapi.com/v3/fixtures?live=all", {
+        let response = await fetch(proxyUrl, {
           method: "GET",
           headers: {
             "x-rapidapi-key": state.settings.apiKey,
@@ -384,12 +390,23 @@ cat << 'EOF' > index.html
           }
         });
 
+        // Fallback to direct fetch if proxy fails
+        if (!response.ok) {
+          response = await fetch(targetUrl, {
+            method: "GET",
+            headers: {
+              "x-rapidapi-key": state.settings.apiKey,
+              "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+            }
+          });
+        }
+
         const data = await response.json();
 
         if (data.errors && Object.keys(data.errors).length > 0) {
           apiErrorMsg = JSON.stringify(data.errors);
           fetchedMatches = [];
-        } else if (data.response) {
+        } else if (data.response && Array.isArray(data.response)) {
           fetchedMatches = data.response.map(item => {
             const elapsed = item.fixture.status.elapsed || 0;
             const homeScore = item.goals.home ?? 0;
@@ -409,7 +426,7 @@ cat << 'EOF' > index.html
               elapsed: elapsed,
               homeScore: homeScore,
               awayScore: awayScore,
-              statusShort: item.fixture.status.short, // "1H", "2H", "HT"
+              statusShort: item.fixture.status.short || "LIVE",
               odds: estimatedOdds,
               conf: Math.min(confScore, 98)
             };
@@ -417,7 +434,7 @@ cat << 'EOF' > index.html
         }
       } catch (err) {
         apiErrorMsg = err.message || "Network error fetching API.";
-        console.error("API Error:", err);
+        console.error("API Fetch Error:", err);
       } finally {
         isFetching = false;
         updateOfflineUI();
@@ -470,20 +487,19 @@ cat << 'EOF' > index.html
         return;
       }
 
-      // BYPASS MODE ACTIVE: Show 0-0 1st Half Matches by Inertial Default
+      // BYPASS MODE ACTIVE: Show 0-0 1st Half Matches by Default
       if (state.bypassFilters) {
         let displayList = fetchedMatches;
 
         if (!state.showAbsoluteAll) {
-          // Default filter: 0-0 Score, First Half (elapsed 1 to 45 mins)
           displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && m.elapsed >= 1 && m.elapsed <= 45);
         }
 
         if (displayList.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-              <p>🌐 API Connected (${fetchedMatches.length} games live overall).</p>
-              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">However, <strong>0 games are currently at 0-0 in the 1st Half</strong> right now.</p>
+              <p>🌐 API Connected (${fetchedMatches.length} total games returned by API feed).</p>
+              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 games at 0-0 in the 1st Half</strong> match this sub-filter.</p>
               <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
             </div>`;
           return;
@@ -495,7 +511,7 @@ cat << 'EOF' > index.html
             <div class="rec-card bypass">
               <div class="rec-header">
                 <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort || '1H'})</span>
+                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort})</span>
               </div>
               <div class="match-teams">${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}</div>
               <div class="match-stats-row">
@@ -512,7 +528,7 @@ cat << 'EOF' > index.html
         return;
       }
 
-      // STRATEGY MODE ACTIVE: Filter matches according to minute/odds limits
+      // STRATEGY MODE ACTIVE
       if (state.activeBet) {
         container.innerHTML = `
           <div style="text-align: center; padding: 20px; color: var(--accent-amber);">
@@ -528,7 +544,7 @@ cat << 'EOF' > index.html
           <div style="text-align: center; padding: 30px; color: var(--text-muted);">
             <p>🔍 API Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
             <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
-              👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to see all 0-0 first-half games directly.
+              👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to inspect all live 0-0 games directly.
             </p>
           </div>`;
         return;
