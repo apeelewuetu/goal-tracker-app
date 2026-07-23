@@ -97,7 +97,7 @@ cat << 'EOF' > index.html
     <div class="app-header">
       <div class="app-title">
         <h1>⚡ LIVE OVER 0.5 GOAL ROLLOVER ASSISTANT</h1>
-        <p>Target: 12 Sequential Live Rollovers (CORS-Bypass Enabled)</p>
+        <p>Target: 12 Sequential Live Rollovers (Direct Multi-Engine Scanner)</p>
       </div>
       <div class="header-actions">
         <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
@@ -236,7 +236,7 @@ cat << 'EOF' > index.html
     let state = {
       settings: { minMin: 10, maxMin: 35, minOdds: 1.10, maxOdds: 1.25, minConf: 65, apiKey: "" },
       isOffline: false,
-      bypassFilters: false,
+      bypassFilters: true, // Default to true on initial load
       showAbsoluteAll: false,
       currentStep: 1,
       activeBet: null,
@@ -262,7 +262,7 @@ cat << 'EOF' > index.html
         if (!state.isOffline && state.settings.apiKey) {
           fetchRealLiveMatches();
         }
-      }, 120000);
+      }, 90000);
     }
 
     function saveState() {
@@ -377,37 +377,56 @@ cat << 'EOF' > index.html
       statusBadge.innerText = "🔄 Fetching Live Matches...";
       statusBadge.style.color = "var(--accent-blue)";
 
-      // Primary Target: API-Football live endpoint through CORS proxy
-      const targetUrl = "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=all";
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      const headers = {
+        "x-rapidapi-key": state.settings.apiKey,
+        "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+      };
 
-      try {
-        let response = await fetch(proxyUrl, {
-          method: "GET",
-          headers: {
-            "x-rapidapi-key": state.settings.apiKey,
-            "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
-          }
-        });
+      const endpoints = [
+        "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=all",
+        "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=1H-2H-HT",
+        "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=1H"
+      ];
 
-        // Fallback to direct fetch if proxy fails
-        if (!response.ok) {
-          response = await fetch(targetUrl, {
-            method: "GET",
-            headers: {
-              "x-rapidapi-key": state.settings.apiKey,
-              "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+      let rawData = null;
+
+      for (let url of endpoints) {
+        try {
+          // Direct Fetch
+          let res = await fetch(url, { method: "GET", headers: headers });
+          if (res.ok) {
+            let parsed = await res.json();
+            if (parsed.response && parsed.response.length > 0) {
+              rawData = parsed;
+              break;
             }
-          });
+          }
+        } catch (e) {
+          console.warn("Direct fetch failed, trying proxy wrapper...", e);
         }
 
-        const data = await response.json();
+        try {
+          // Fallback via AllOrigins encoding
+          let proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+          let res = await fetch(proxyUrl, { method: "GET", headers: headers });
+          if (res.ok) {
+            let parsed = await res.json();
+            if (parsed.response && parsed.response.length > 0) {
+              rawData = parsed;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn("Proxy attempt failed:", e);
+        }
+      }
 
-        if (data.errors && Object.keys(data.errors).length > 0) {
-          apiErrorMsg = JSON.stringify(data.errors);
+      if (rawData) {
+        if (rawData.errors && Object.keys(rawData.errors).length > 0) {
+          apiErrorMsg = JSON.stringify(rawData.errors);
           fetchedMatches = [];
-        } else if (data.response && Array.isArray(data.response)) {
-          fetchedMatches = data.response.map(item => {
+        } else if (rawData.response) {
+          fetchedMatches = rawData.response.map(item => {
             const elapsed = item.fixture.status.elapsed || 0;
             const homeScore = item.goals.home ?? 0;
             const awayScore = item.goals.away ?? 0;
@@ -432,14 +451,14 @@ cat << 'EOF' > index.html
             };
           });
         }
-      } catch (err) {
-        apiErrorMsg = err.message || "Network error fetching API.";
-        console.error("API Fetch Error:", err);
-      } finally {
-        isFetching = false;
-        updateOfflineUI();
-        renderAll();
+      } else {
+        if (!apiErrorMsg) apiErrorMsg = "No live match response returned. Please verify your RapidAPI Key / Plan permissions.";
+        fetchedMatches = [];
       }
+
+      isFetching = false;
+      updateOfflineUI();
+      renderAll();
     }
 
     function getBestCandidate() {
@@ -477,12 +496,12 @@ cat << 'EOF' > index.html
         return;
       }
 
-      if (apiErrorMsg) {
+      if (apiErrorMsg && fetchedMatches.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; padding: 20px; color: var(--accent-red);">
-            <h3>⚠️ API Connection Error</h3>
+            <h3>⚠️ API Connection Alert</h3>
             <p style="font-size: 13px; margin-top: 6px;">${apiErrorMsg}</p>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Please verify your RapidAPI Key and subscription status.</p>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Verify your RapidAPI Key and confirm active live coverage on your API-Football subscription.</p>
           </div>`;
         return;
       }
@@ -492,14 +511,14 @@ cat << 'EOF' > index.html
         let displayList = fetchedMatches;
 
         if (!state.showAbsoluteAll) {
-          displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && m.elapsed >= 1 && m.elapsed <= 45);
+          displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && (m.elapsed <= 45 || m.statusShort === '1H'));
         }
 
         if (displayList.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-              <p>🌐 API Connected (${fetchedMatches.length} total games returned by API feed).</p>
-              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 games at 0-0 in the 1st Half</strong> match this sub-filter.</p>
+              <p>🌐 API Connected (${fetchedMatches.length} total games active globally).</p>
+              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 matches at 0-0 in the 1st Half</strong>.</p>
               <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
             </div>`;
           return;
