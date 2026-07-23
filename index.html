@@ -97,12 +97,12 @@ cat << 'EOF' > index.html
     <div class="app-header">
       <div class="app-title">
         <h1>⚡ LIVE OVER 0.5 GOAL ROLLOVER ASSISTANT</h1>
-        <p>Target: 12 Sequential Live Rollovers (Direct Multi-Engine Scanner)</p>
+        <p>Target: 12 Sequential Live Rollovers (GitHub Data Feed)</p>
       </div>
       <div class="header-actions">
         <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
-        <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Go Offline (Pause API)</button>
-        <button class="btn btn-primary" onclick="manualScan()">🔄 Scan Live Now</button>
+        <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Pause Sync</button>
+        <button class="btn btn-primary" onclick="manualScan()">🔄 Sync GitHub API</button>
         <button class="btn btn-secondary" onclick="exportHistory('CSV')">📥 Export CSV</button>
       </div>
     </div>
@@ -134,15 +134,14 @@ cat << 'EOF' > index.html
         <div class="panel">
           <div class="panel-header">
             <span class="panel-title">🎯 Live Matches & Recommendation (Step <span id="currentStepNum">1</span>)</span>
-            <span id="scanStatusBadge" style="font-size: 12px; color: var(--accent-green);">● API Active</span>
+            <span id="scanStatusBadge" style="font-size: 12px; color: var(--accent-green);">● GitHub Sync Active</span>
           </div>
 
-          <!-- Bypass Notice Header -->
           <div id="filterBypassNotice" style="display: none; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--accent-purple); color: #ddd; padding: 12px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <span>⚠️ <strong>Filter Bypass Mode:</strong> Showing raw live matches currently at <strong style="color:var(--accent-green);">0-0 (1st Half, 1'-45')</strong>.</span>
               <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleStrictBypass()">
-                <span id="strictBypassLabel">Show All Global Live Matches</span>
+                <span id="strictBypassLabel">Show All GitHub Live Matches</span>
               </button>
             </div>
           </div>
@@ -160,19 +159,18 @@ cat << 'EOF' > index.html
         </div>
       </div>
 
-      <!-- Right Column: Settings & Key Controls -->
+      <!-- Right Column: GitHub Config & Controls -->
       <div>
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">🔑 API Key & Quota Guard</span>
+            <span class="panel-title">🐙 GitHub Data Endpoint Config</span>
           </div>
           <div class="form-group" style="margin-bottom: 12px;">
-            <label>RapidAPI Key (API-Football)</label>
-            <input type="password" id="cfgApiKey" placeholder="Paste RapidAPI key..." onchange="updateSettings()">
+            <label>GitHub Raw JSON Data URL</label>
+            <input type="text" id="cfgGithubUrl" placeholder="https://raw.githubusercontent.com/username/repo/main/matches.json" onchange="updateSettings()">
           </div>
           <div style="display: flex; gap: 8px; margin-bottom: 20px;">
-            <button class="btn btn-primary" style="flex: 1;" onclick="saveKeyAndScan()">💾 Save Key</button>
-            <button class="btn btn-danger" style="flex: 1;" onclick="clearKeyAndGoOffline()">🗑️ Clear Key & Off</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="saveUrlAndScan()">💾 Save Endpoint</button>
           </div>
 
           <div class="panel-header" style="margin-top: 20px;">
@@ -234,7 +232,14 @@ cat << 'EOF' > index.html
 
   <script>
     let state = {
-      settings: { minMin: 10, maxMin: 35, minOdds: 1.10, maxOdds: 1.25, minConf: 65, apiKey: "" },
+      settings: { 
+        minMin: 10, 
+        maxMin: 35, 
+        minOdds: 1.10, 
+        maxOdds: 1.25, 
+        minConf: 65, 
+        githubUrl: "https://raw.githubusercontent.com/apeelewuetu/goal-tracker-app/main/matches.json" 
+      },
       isOffline: false,
       bypassFilters: true,
       showAbsoluteAll: false,
@@ -249,24 +254,24 @@ cat << 'EOF' > index.html
     let apiErrorMsg = "";
 
     function init() {
-      const saved = localStorage.getItem('rollover_assistant_master_state');
+      const saved = localStorage.getItem('rollover_assistant_github_state');
       if (saved) {
         try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { console.error(e); }
       }
       syncUI();
       renderAll();
-      if (!state.isOffline && state.settings.apiKey) {
-        fetchRealLiveMatches();
+      if (!state.isOffline) {
+        fetchGithubMatches();
       }
       setInterval(() => {
-        if (!state.isOffline && state.settings.apiKey) {
-          fetchRealLiveMatches();
+        if (!state.isOffline) {
+          fetchGithubMatches();
         }
-      }, 90000);
+      }, 60000);
     }
 
     function saveState() {
-      localStorage.setItem('rollover_assistant_master_state', JSON.stringify(state));
+      localStorage.setItem('rollover_assistant_github_state', JSON.stringify(state));
       renderAll();
     }
 
@@ -276,7 +281,7 @@ cat << 'EOF' > index.html
       document.getElementById('cfgMinOdds').value = state.settings.minOdds;
       document.getElementById('cfgMaxOdds').value = state.settings.maxOdds;
       document.getElementById('cfgMinConf').value = state.settings.minConf;
-      document.getElementById('cfgApiKey').value = state.settings.apiKey || "";
+      document.getElementById('cfgGithubUrl').value = state.settings.githubUrl || "";
       updateOfflineUI();
     }
 
@@ -286,31 +291,22 @@ cat << 'EOF' > index.html
       state.settings.minOdds = parseFloat(document.getElementById('cfgMinOdds').value) || 1.10;
       state.settings.maxOdds = parseFloat(document.getElementById('cfgMaxOdds').value) || 1.25;
       state.settings.minConf = parseInt(document.getElementById('cfgMinConf').value) || 65;
-      state.settings.apiKey = document.getElementById('cfgApiKey').value.trim();
+      state.settings.githubUrl = document.getElementById('cfgGithubUrl').value.trim();
       saveState();
     }
 
-    function saveKeyAndScan() {
+    function saveUrlAndScan() {
       updateSettings();
       state.isOffline = false;
       updateOfflineUI();
-      fetchRealLiveMatches();
-    }
-
-    function clearKeyAndGoOffline() {
-      state.settings.apiKey = "";
-      state.isOffline = true;
-      document.getElementById('cfgApiKey').value = "";
-      saveState();
-      updateOfflineUI();
-      renderAll();
+      fetchGithubMatches();
     }
 
     function toggleOfflineMode() {
       state.isOffline = !state.isOffline;
       saveState();
       updateOfflineUI();
-      if (!state.isOffline) fetchRealLiveMatches();
+      if (!state.isOffline) fetchGithubMatches();
     }
 
     function toggleFilterBypass() {
@@ -335,7 +331,7 @@ cat << 'EOF' > index.html
         bypassBtn.innerText = "🔒 Apply Strategy Filters";
         notice.style.display = "block";
         if (strictLabel) {
-          strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All Global Live Matches";
+          strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All GitHub Live Matches";
         }
       } else {
         bypassBtn.className = "btn btn-purple";
@@ -345,129 +341,66 @@ cat << 'EOF' > index.html
 
       if (state.isOffline) {
         btn.className = "btn btn-success";
-        btn.innerText = "⚡ Go Online (Resume API)";
-        badge.innerText = "⏸️ Offline (API Requests Paused)";
-        badge.style.color = "var(--accent-amber)";
-      } else if (!state.settings.apiKey) {
-        btn.className = "btn btn-warning";
-        btn.innerText = "🔑 No Key Set";
-        badge.innerText = "⚠️ Missing RapidAPI Key";
+        btn.innerText = "⚡ Resume Sync";
+        badge.innerText = "⏸️ Sync Paused";
         badge.style.color = "var(--accent-amber)";
       } else {
         btn.className = "btn btn-warning";
-        btn.innerText = "🔌 Go Offline (Pause API)";
-        badge.innerText = `● API Active (${fetchedMatches.length} Live Games)`;
+        btn.innerText = "🔌 Pause Sync";
+        badge.innerText = `● GitHub Active (${fetchedMatches.length} Live Games)`;
         badge.style.color = "var(--accent-green)";
       }
     }
 
     function manualScan() {
-      if (state.isOffline) {
-        state.isOffline = false;
-      }
-      fetchRealLiveMatches();
+      if (state.isOffline) state.isOffline = false;
+      fetchGithubMatches();
     }
 
-    async function fetchRealLiveMatches() {
-      if (state.isOffline || !state.settings.apiKey || isFetching) return;
+    async function fetchGithubMatches() {
+      if (state.isOffline || isFetching) return;
 
       isFetching = true;
       apiErrorMsg = "";
       const statusBadge = document.getElementById('scanStatusBadge');
-      statusBadge.innerText = "🔄 Fetching Live Matches...";
+      statusBadge.innerText = "🔄 Syncing with GitHub...";
       statusBadge.style.color = "var(--accent-blue)";
 
-      const apiKey = state.settings.apiKey;
-      const headers = {
-        "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
-      };
+      const url = state.settings.githubUrl + "?t=" + new Date().getTime();
 
-      const targetUrls = [
-        "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=all",
-        "https://api-football-v1.p.rapidapi.com/v3/fixtures?live=1H-2H-HT"
-      ];
+      try {
+        let res = await fetch(url);
+        if (res.ok) {
+          let json = await res.json();
+          let rawList = Array.isArray(json) ? json : (json.response || json.matches || []);
 
-      let rawData = null;
-
-      for (let targetUrl of targetUrls) {
-        // Method A: Direct fetch with standard headers
-        try {
-          let res = await fetch(targetUrl, { method: "GET", headers: headers });
-          if (res.ok) {
-            let json = await res.json();
-            if (json.response && json.response.length > 0) {
-              rawData = json;
-              break;
-            }
-          }
-        } catch (e) {
-          console.warn("Direct fetch attempt failed:", e);
-        }
-
-        // Method B: Via CorsProxy with encoded params
-        try {
-          let proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-          let res = await fetch(proxyUrl, { method: "GET", headers: headers });
-          if (res.ok) {
-            let json = await res.json();
-            if (json.response && json.response.length > 0) {
-              rawData = json;
-              break;
-            }
-          }
-        } catch (e) {
-          console.warn("CorsProxy attempt failed:", e);
-        }
-
-        // Method C: Via AllOrigins Raw JSON fallback
-        try {
-          let aoUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl + "&secret_key=" + apiKey)}`;
-          let res = await fetch(aoUrl, { method: "GET", headers: headers });
-          if (res.ok) {
-            let json = await res.json();
-            if (json.response && json.response.length > 0) {
-              rawData = json;
-              break;
-            }
-          }
-        } catch (e) {
-          console.warn("AllOrigins attempt failed:", e);
-        }
-      }
-
-      if (rawData) {
-        if (rawData.errors && Object.keys(rawData.errors).length > 0) {
-          apiErrorMsg = JSON.stringify(rawData.errors);
-          fetchedMatches = [];
-        } else if (rawData.response) {
-          fetchedMatches = rawData.response.map(item => {
-            const elapsed = item.fixture.status.elapsed || 0;
-            const homeScore = item.goals.home ?? 0;
-            const awayScore = item.goals.away ?? 0;
-            const estimatedOdds = parseFloat((1.08 + (elapsed * 0.005)).toFixed(2));
-
-            let confScore = 70;
-            if (item.league.name.includes("League") || item.league.name.includes("Cup")) confScore += 10;
-            if (elapsed >= 15 && elapsed <= 25) confScore += 10;
+          fetchedMatches = rawList.map((item, idx) => {
+            const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
+            const homeScore = item.homeScore ?? item.goals?.home ?? 0;
+            const awayScore = item.awayScore ?? item.goals?.away ?? 0;
+            const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
 
             return {
-              id: item.fixture.id,
-              league: item.league.name,
-              country: item.league.country,
-              home: item.teams.home.name,
-              away: item.teams.away.name,
+              id: item.id || idx + 1,
+              league: item.league || item.league?.name || "Global League",
+              country: item.country || item.league?.country || "World",
+              home: item.home || item.teams?.home?.name || "Home Team",
+              away: item.away || item.teams?.away?.name || "Away Team",
               elapsed: elapsed,
               homeScore: homeScore,
               awayScore: awayScore,
-              statusShort: item.fixture.status.short || "LIVE",
+              statusShort: item.statusShort || item.fixture?.status?.short || "1H",
               odds: estimatedOdds,
-              conf: Math.min(confScore, 98)
+              conf: item.conf || 75
             };
           });
+        } else {
+          apiErrorMsg = `Failed to load GitHub file (HTTP ${res.status}). Verify the file URL in settings.`;
+          fetchedMatches = [];
         }
-      } else {
-        if (!apiErrorMsg) apiErrorMsg = "Unable to retrieve live matches. Please check your RapidAPI Key validity or subscription status.";
+      } catch (e) {
+        console.error(e);
+        apiErrorMsg = "Unable to reach GitHub data endpoint. Check your repository URL or internet connection.";
         fetchedMatches = [];
       }
 
@@ -494,19 +427,10 @@ cat << 'EOF' > index.html
       if (state.isOffline) {
         container.innerHTML = `
           <div style="text-align: center; padding: 25px; color: var(--accent-amber);">
-            <h3>⏸️ Scanner is Currently Offline</h3>
+            <h3>⏸️ Sync is Currently Paused</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
-              API rate limit protected. Click <strong>"⚡ Go Online"</strong> or <strong>"🔄 Scan Live Now"</strong> to resume.
+              Click <strong>"⚡ Resume Sync"</strong> or <strong>"🔄 Sync GitHub API"</strong> to refresh.
             </p>
-          </div>`;
-        return;
-      }
-
-      if (!state.settings.apiKey) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 25px; color: var(--accent-amber);">
-            <h3>🔑 RapidAPI Key Required</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Paste your key in the side panel and click <strong>"Save Key"</strong> to start loading matches.</p>
           </div>`;
         return;
       }
@@ -514,9 +438,8 @@ cat << 'EOF' > index.html
       if (apiErrorMsg && fetchedMatches.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; padding: 20px; color: var(--accent-red);">
-            <h3>⚠️ API Connection Alert</h3>
+            <h3>⚠️ GitHub Data Endpoint Alert</h3>
             <p style="font-size: 13px; margin-top: 6px;">${apiErrorMsg}</p>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Verify your RapidAPI Key and confirm active live coverage on your API-Football subscription.</p>
           </div>`;
         return;
       }
@@ -531,7 +454,7 @@ cat << 'EOF' > index.html
         if (displayList.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-              <p>🌐 API Connected (${fetchedMatches.length} total games active globally).</p>
+              <p>🌐 Connected to GitHub (${fetchedMatches.length} total games active globally).</p>
               <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 matches at 0-0 in the 1st Half</strong>.</p>
               <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
             </div>`;
@@ -574,7 +497,7 @@ cat << 'EOF' > index.html
       if (!match) {
         container.innerHTML = `
           <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <p>🔍 API Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
+            <p>🔍 GitHub Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
             <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
               👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to inspect all live 0-0 games directly.
             </p>
