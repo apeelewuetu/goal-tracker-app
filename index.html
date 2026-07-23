@@ -19,6 +19,7 @@ cat << 'EOF' > index.html
       --accent-red: #ef4444;
       --accent-red-bg: rgba(239, 68, 68, 0.15);
       --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -44,6 +45,7 @@ cat << 'EOF' > index.html
     .btn-danger { background-color: var(--accent-red); color: #fff; }
     .btn-secondary { background-color: var(--border-color); color: var(--text-main); }
     .btn-warning { background-color: var(--accent-amber); color: #0b0f19; font-weight: 700; }
+    .btn-purple { background-color: var(--accent-purple); color: #fff; font-weight: 700; }
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
     /* KPI Grid */
@@ -63,15 +65,13 @@ cat << 'EOF' > index.html
     .panel-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 
     /* Cards */
-    .rec-card { background-color: var(--bg-main); border: 2px solid var(--accent-blue); border-radius: 8px; padding: 20px; position: relative; }
+    .rec-card { background-color: var(--bg-main); border: 2px solid var(--accent-blue); border-radius: 8px; padding: 20px; position: relative; margin-bottom: 12px; }
+    .rec-card.bypass { border-color: var(--accent-purple); }
     .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .league-badge { font-size: 12px; font-weight: 600; color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; }
-    .match-teams { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
-    .match-stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; font-size: 13px; }
-    .stat-badge { background-color: var(--bg-card); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); }
-
-    .progress-bar-bg { height: 12px; background-color: var(--border-color); border-radius: 6px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background-color: var(--accent-green); width: 0%; transition: width 0.3s; }
+    .match-teams { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
+    .match-stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; }
+    .stat-badge { background-color: var(--bg-card); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
 
     /* Form Controls */
     .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
@@ -100,6 +100,7 @@ cat << 'EOF' > index.html
         <p>Target: 12 Sequential Live Rollovers (API Rate-Limit Protected)</p>
       </div>
       <div class="header-actions">
+        <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
         <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Go Offline (Pause API)</button>
         <button class="btn btn-primary" onclick="manualScan()">🔄 Scan Live Now</button>
         <button class="btn btn-secondary" onclick="exportHistory('CSV')">📥 Export CSV</button>
@@ -121,8 +122,8 @@ cat << 'EOF' > index.html
         <div class="kpi-value green" id="kpiStreak">0 🔥</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-title">API Quota Guard</div>
-        <div class="kpi-value" id="kpiQuotaGuard">Active</div>
+        <div class="kpi-title">Raw Live Matches</div>
+        <div class="kpi-value" id="kpiRawMatches">0</div>
       </div>
     </div>
 
@@ -132,9 +133,20 @@ cat << 'EOF' > index.html
       <div>
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">🎯 Current Recommendation (Step <span id="currentStepNum">1</span>)</span>
+            <span class="panel-title">🎯 Live Matches & Recommendation (Step <span id="currentStepNum">1</span>)</span>
             <span id="scanStatusBadge" style="font-size: 12px; color: var(--accent-green);">● API Active</span>
           </div>
+
+          <!-- Bypass Notice Header -->
+          <div id="filterBypassNotice" style="display: none; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--accent-purple); color: #ddd; padding: 12px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <span>⚠️ <strong>Filter Bypass Mode:</strong> Showing raw live matches currently at <strong style="color:var(--accent-green);">0-0 (1st Half, 1'-45')</strong>.</span>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleStrictBypass()">
+                <span id="strictBypassLabel">Toggle All Global Live Matches</span>
+              </button>
+            </div>
+          </div>
+
           <div id="recommendationContainer"></div>
         </div>
 
@@ -152,7 +164,7 @@ cat << 'EOF' > index.html
       <div>
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">🔑 API Key & Preserving Quota</span>
+            <span class="panel-title">🔑 API Key & Quota Guard</span>
           </div>
           <div class="form-group" style="margin-bottom: 12px;">
             <label>RapidAPI Key (API-Football)</label>
@@ -224,6 +236,8 @@ cat << 'EOF' > index.html
     let state = {
       settings: { minMin: 10, maxMin: 35, minOdds: 1.10, maxOdds: 1.25, minConf: 65, apiKey: "" },
       isOffline: false,
+      bypassFilters: false,
+      showAbsoluteAll: false, // false = 0-0 1st half only, true = literally all games
       currentStep: 1,
       activeBet: null,
       history: [],
@@ -232,6 +246,7 @@ cat << 'EOF' > index.html
 
     let fetchedMatches = [];
     let isFetching = false;
+    let apiErrorMsg = "";
 
     function init() {
       const saved = localStorage.getItem('rollover_assistant_master_state');
@@ -298,39 +313,55 @@ cat << 'EOF' > index.html
       if (!state.isOffline) fetchRealLiveMatches();
     }
 
+    function toggleFilterBypass() {
+      state.bypassFilters = !state.bypassFilters;
+      saveState();
+    }
+
+    function toggleStrictBypass() {
+      state.showAbsoluteAll = !state.showAbsoluteAll;
+      saveState();
+    }
+
     function updateOfflineUI() {
       const btn = document.getElementById('toggleOnlineBtn');
+      const bypassBtn = document.getElementById('bypassBtn');
       const badge = document.getElementById('scanStatusBadge');
-      const quota = document.getElementById('kpiQuotaGuard');
+      const notice = document.getElementById('filterBypassNotice');
+      const strictLabel = document.getElementById('strictBypassLabel');
+
+      if (state.bypassFilters) {
+        bypassBtn.className = "btn btn-success";
+        bypassBtn.innerText = "🔒 Apply Strategy Filters";
+        notice.style.display = "block";
+        strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All Global Live Matches";
+      } else {
+        bypassBtn.className = "btn btn-purple";
+        bypassBtn.innerText = "🔓 Raw Matches (0-0 1st Half)";
+        notice.style.display = "none";
+      }
 
       if (state.isOffline) {
         btn.className = "btn btn-success";
         btn.innerText = "⚡ Go Online (Resume API)";
         badge.innerText = "⏸️ Offline (API Requests Paused)";
         badge.style.color = "var(--accent-amber)";
-        quota.innerText = "Paused 🔒";
-        quota.style.color = "var(--accent-amber)";
       } else if (!state.settings.apiKey) {
         btn.className = "btn btn-warning";
         btn.innerText = "🔑 No Key Set";
         badge.innerText = "⚠️ Missing RapidAPI Key";
         badge.style.color = "var(--accent-amber)";
-        quota.innerText = "No Key ⚠️";
-        quota.style.color = "var(--accent-amber)";
       } else {
         btn.className = "btn btn-warning";
         btn.innerText = "🔌 Go Offline (Pause API)";
         badge.innerText = `● API Active (${fetchedMatches.length} Live Games)`;
         badge.style.color = "var(--accent-green)";
-        quota.innerText = "Protected 🛡️";
-        quota.style.color = "var(--accent-green)";
       }
     }
 
     function manualScan() {
       if (state.isOffline) {
         state.isOffline = false;
-        updateOfflineUI();
       }
       fetchRealLiveMatches();
     }
@@ -339,6 +370,7 @@ cat << 'EOF' > index.html
       if (state.isOffline || !state.settings.apiKey || isFetching) return;
 
       isFetching = true;
+      apiErrorMsg = "";
       const statusBadge = document.getElementById('scanStatusBadge');
       statusBadge.innerText = "🔄 Fetching Live Matches...";
       statusBadge.style.color = "var(--accent-blue)";
@@ -353,8 +385,11 @@ cat << 'EOF' > index.html
         });
 
         const data = await response.json();
-        
-        if (data.response) {
+
+        if (data.errors && Object.keys(data.errors).length > 0) {
+          apiErrorMsg = JSON.stringify(data.errors);
+          fetchedMatches = [];
+        } else if (data.response) {
           fetchedMatches = data.response.map(item => {
             const elapsed = item.fixture.status.elapsed || 0;
             const homeScore = item.goals.home ?? 0;
@@ -374,12 +409,14 @@ cat << 'EOF' > index.html
               elapsed: elapsed,
               homeScore: homeScore,
               awayScore: awayScore,
+              statusShort: item.fixture.status.short, // "1H", "2H", "HT"
               odds: estimatedOdds,
               conf: Math.min(confScore, 98)
             };
           });
         }
       } catch (err) {
+        apiErrorMsg = err.message || "Network error fetching API.";
         console.error("API Error:", err);
       } finally {
         isFetching = false;
@@ -408,7 +445,7 @@ cat << 'EOF' > index.html
           <div style="text-align: center; padding: 25px; color: var(--accent-amber);">
             <h3>⏸️ Scanner is Currently Offline</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
-              Your API rate limit is protected. Click <strong>"⚡ Go Online"</strong> or <strong>"🔄 Scan Live Now"</strong> when you are ready to resume scanning.
+              API rate limit protected. Click <strong>"⚡ Go Online"</strong> or <strong>"🔄 Scan Live Now"</strong> to resume.
             </p>
           </div>`;
         return;
@@ -418,16 +455,69 @@ cat << 'EOF' > index.html
         container.innerHTML = `
           <div style="text-align: center; padding: 25px; color: var(--accent-amber);">
             <h3>🔑 RapidAPI Key Required</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Paste your key in the side panel and click <strong>"Save Key"</strong> to start receiving real live recommendations.</p>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Paste your key in the side panel and click <strong>"Save Key"</strong> to start loading matches.</p>
           </div>`;
         return;
       }
 
+      if (apiErrorMsg) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 20px; color: var(--accent-red);">
+            <h3>⚠️ API Connection Error</h3>
+            <p style="font-size: 13px; margin-top: 6px;">${apiErrorMsg}</p>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Please verify your RapidAPI Key and subscription status.</p>
+          </div>`;
+        return;
+      }
+
+      // BYPASS MODE ACTIVE: Show 0-0 1st Half Matches by Inertial Default
+      if (state.bypassFilters) {
+        let displayList = fetchedMatches;
+
+        if (!state.showAbsoluteAll) {
+          // Default filter: 0-0 Score, First Half (elapsed 1 to 45 mins)
+          displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && m.elapsed >= 1 && m.elapsed <= 45);
+        }
+
+        if (displayList.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+              <p>🌐 API Connected (${fetchedMatches.length} games live overall).</p>
+              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">However, <strong>0 games are currently at 0-0 in the 1st Half</strong> right now.</p>
+              <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
+            </div>`;
+          return;
+        }
+
+        let html = `<div style="max-height: 480px; overflow-y: auto; padding-right: 4px;">`;
+        displayList.forEach(match => {
+          html += `
+            <div class="rec-card bypass">
+              <div class="rec-header">
+                <span class="league-badge">🏆 ${match.league} (${match.country})</span>
+                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort || '1H'})</span>
+              </div>
+              <div class="match-teams">${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}</div>
+              <div class="match-stats-row">
+                <span class="stat-badge">Est. Odds: <strong>${match.odds.toFixed(2)}</strong></span>
+                <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
+              </div>
+              <button class="btn btn-purple" style="width: 100%; font-size: 13px; padding: 8px;" onclick="placeBet(${match.id})">
+                ✔ Lock Bet (Step ${state.currentStep})
+              </button>
+            </div>`;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+        return;
+      }
+
+      // STRATEGY MODE ACTIVE: Filter matches according to minute/odds limits
       if (state.activeBet) {
         container.innerHTML = `
           <div style="text-align: center; padding: 20px; color: var(--accent-amber);">
             <h3>⏳ Step ${state.currentStep} Active</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet to unlock the next live pick.</p>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet to unlock the next pick.</p>
           </div>`;
         return;
       }
@@ -436,8 +526,10 @@ cat << 'EOF' > index.html
       if (!match) {
         container.innerHTML = `
           <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <p>🔍 Scanning live matches in window ${state.settings.minMin}'–${state.settings.maxMin}' (Score 0-0)...</p>
-            <p style="font-size: 12px; margin-top: 6px; color: var(--accent-amber);">No match currently meets all settings filters. Auto-checking again in 2 mins.</p>
+            <p>🔍 API Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
+            <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
+              👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to see all 0-0 first-half games directly.
+            </p>
           </div>`;
         return;
       }
@@ -510,7 +602,7 @@ cat << 'EOF' > index.html
         league: bet.league,
         match: bet.match,
         entryMinute: `${bet.entryMinute}'`,
-        odds: bet.odds.toFixed(2),
+        odds: typeof bet.odds === 'number' ? bet.odds.toFixed(2) : bet.odds,
         result: isWin ? "WON" : "LOST",
         note: ""
       });
@@ -565,6 +657,10 @@ cat << 'EOF' > index.html
       const wins = state.history.filter(h => h.result === "WON").length;
       document.getElementById('kpiWinRate').innerText = `${total > 0 ? Math.round((wins / total) * 100) : 0}%`;
       document.getElementById('kpiStreak').innerText = `${state.streak} 🔥`;
+
+      const rawKpEl = document.getElementById('kpiRawMatches');
+      rawKpEl.innerText = fetchedMatches.length;
+      rawKpEl.style.color = fetchedMatches.length > 0 ? "var(--accent-green)" : "var(--accent-amber)";
     }
 
     function renderAll() {
