@@ -5,7 +5,7 @@
     "country": "World",
     "home": "Bournemouth",
     "away": "St. Pauli",
-    "elapsed": 83,
+    "elapsed": 84,
     "homeScore": 4,
     "awayScore": 1,
     "statusShort": "2H",
@@ -18,7 +18,7 @@
     "country": "World",
     "home": "GFK Tikves Kavadarci",
     "away": "Arsimi",
-    "elapsed": 43,
+    "elapsed": 44,
     "homeScore": 4,
     "awayScore": 1,
     "statusShort": "1H",
@@ -31,11 +31,11 @@
     "country": "World",
     "home": "UTA Arad",
     "away": "Otelul Galati",
-    "elapsed": 10,
+    "elapsed": 12,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   }
 ]
