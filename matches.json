@@ -1,15 +1,28 @@
 [
   {
-    "id": 1,
-    "league": "Premier League",
-    "country": "England",
-    "home": "Arsenal",
-    "away": "Chelsea",
+    "id": 5899059,
+    "league": "Global League",
+    "country": "World",
+    "home": "Bournemouth",
+    "away": "St. Pauli",
+    "elapsed": 61,
+    "homeScore": 4,
+    "awayScore": 1,
+    "statusShort": "2H",
+    "odds": 1.39,
+    "conf": 80
+  },
+  {
+    "id": 5804907,
+    "league": "Global League",
+    "country": "World",
+    "home": "GFK Tikves Kavadarci",
+    "away": "Arsimi",
     "elapsed": 22,
-    "homeScore": 0,
+    "homeScore": 1,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.18,
-    "conf": 82
+    "odds": 1.19,
+    "conf": 80
   }
 ]
