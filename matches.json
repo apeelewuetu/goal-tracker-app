@@ -18,11 +18,11 @@
     "country": "World",
     "home": "Beroe",
     "away": "Hebar",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -31,11 +31,11 @@
     "country": "World",
     "home": "UTA Arad",
     "away": "Otelul Galati",
-    "elapsed": 22,
+    "elapsed": 24,
     "homeScore": 0,
     "awayScore": 1,
     "statusShort": "1H",
-    "odds": 1.19,
+    "odds": 1.2,
     "conf": 80
   }
 ]
