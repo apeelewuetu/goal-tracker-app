@@ -119,7 +119,7 @@ cat << 'EOF' > index.html
         <p>Target: 12 Sequential Live Rollovers (GitHub Data Feed)</p>
       </div>
       <div class="header-actions">
-        <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
+        <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 Only)</button>
         <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Pause Sync</button>
         <button class="btn btn-primary" onclick="manualScan()">🔄 Sync GitHub API</button>
         <button class="btn btn-secondary" onclick="exportHistory('CSV')">📥 Export CSV</button>
@@ -141,7 +141,7 @@ cat << 'EOF' > index.html
         <div class="kpi-value green" id="kpiStreak">0 🔥</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-title">Raw Live Matches</div>
+        <div class="kpi-title">Active 0-0 Games</div>
         <div class="kpi-value" id="kpiRawMatches">0</div>
       </div>
     </div>
@@ -158,10 +158,7 @@ cat << 'EOF' > index.html
 
           <div id="filterBypassNotice" style="display: none; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--accent-purple); color: #ddd; padding: 12px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <span>⚠️ <strong>Filter Bypass Mode:</strong> Showing raw live matches currently at <strong style="color:var(--accent-green);">0-0 (1st Half, 1'-45')</strong>.</span>
-              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleStrictBypass()">
-                <span id="strictBypassLabel">Show All GitHub Live Matches</span>
-              </button>
+              <span>⚠️ <strong>Auto-Purge Active:</strong> Only games currently at <strong style="color:var(--accent-green);">0-0 (1st Half)</strong> are displayed. Matches automatically vanish once a goal is scored.</span>
             </div>
           </div>
 
@@ -178,7 +175,7 @@ cat << 'EOF' > index.html
         </div>
       </div>
 
-      <!-- Right Column: GitHub Config & Controls -->
+      <!-- Right Column: Controls -->
       <div>
         <div class="panel">
           <div class="panel-header">
@@ -263,7 +260,6 @@ cat << 'EOF' > index.html
       },
       isOffline: false,
       bypassFilters: true,
-      showAbsoluteAll: false,
       currentStep: 1,
       activeBet: null,
       history: [],
@@ -361,28 +357,19 @@ cat << 'EOF' > index.html
       saveState();
     }
 
-    function toggleStrictBypass() {
-      state.showAbsoluteAll = !state.showAbsoluteAll;
-      saveState();
-    }
-
     function updateOfflineUI() {
       const btn = document.getElementById('toggleOnlineBtn');
       const bypassBtn = document.getElementById('bypassBtn');
       const badge = document.getElementById('scanStatusBadge');
       const notice = document.getElementById('filterBypassNotice');
-      const strictLabel = document.getElementById('strictBypassLabel');
 
       if (state.bypassFilters) {
         bypassBtn.className = "btn btn-success";
         bypassBtn.innerText = "🔒 Apply Strategy Filters";
         notice.style.display = "block";
-        if (strictLabel) {
-          strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All GitHub Live Matches";
-        }
       } else {
         bypassBtn.className = "btn btn-purple";
-        bypassBtn.innerText = "🔓 Raw Matches (0-0 1st Half)";
+        bypassBtn.innerText = "🔓 Raw Matches (0-0 Only)";
         notice.style.display = "none";
       }
 
@@ -394,7 +381,7 @@ cat << 'EOF' > index.html
       } else {
         btn.className = "btn btn-warning";
         btn.innerText = "🔌 Pause Sync";
-        badge.innerText = `● GitHub Active (${fetchedMatches.length} Live Games)`;
+        badge.innerText = `● GitHub Active (${fetchedMatches.length} 0-0 Games)`;
         badge.style.color = "var(--accent-green)";
       }
     }
@@ -421,26 +408,30 @@ cat << 'EOF' > index.html
           let json = await res.json();
           let rawList = Array.isArray(json) ? json : (json.response || json.matches || []);
 
-          fetchedMatches = rawList.map((item, idx) => {
-            const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
-            const homeScore = item.homeScore ?? item.goals?.home ?? 0;
-            const awayScore = item.awayScore ?? item.goals?.away ?? 0;
-            const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
+          // AUTOMATIC REMOVAL: STRICTLY PURGE ALL SCORED MATCHES (ONLY KEEP 0-0)
+          fetchedMatches = rawList
+            .map((item, idx) => {
+              const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
+              const homeScore = item.homeScore ?? item.goals?.home ?? 0;
+              const awayScore = item.awayScore ?? item.goals?.away ?? 0;
+              const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
 
-            return {
-              id: item.id || idx + 1,
-              league: item.league || item.league?.name || "Global League",
-              country: item.country || item.league?.country || "World",
-              home: item.home || item.teams?.home?.name || "Home Team",
-              away: item.away || item.teams?.away?.name || "Away Team",
-              elapsed: elapsed,
-              homeScore: homeScore,
-              awayScore: awayScore,
-              statusShort: item.statusShort || item.fixture?.status?.short || "1H",
-              odds: estimatedOdds,
-              conf: item.conf || 75
-            };
-          });
+              return {
+                id: item.id || idx + 1,
+                league: item.league || item.league?.name || "Global League",
+                country: item.country || item.league?.country || "World",
+                home: item.home || item.teams?.home?.name || "Home Team",
+                away: item.away || item.teams?.away?.name || "Away Team",
+                elapsed: elapsed,
+                homeScore: homeScore,
+                awayScore: awayScore,
+                statusShort: item.statusShort || item.fixture?.status?.short || "1H",
+                odds: estimatedOdds,
+                conf: item.conf || 75
+              };
+            })
+            .filter(m => m.homeScore === 0 && m.awayScore === 0);
+
         } else {
           apiErrorMsg = `Failed to load GitHub file (HTTP ${res.status}). Verify the file URL in settings.`;
           fetchedMatches = [];
@@ -460,8 +451,7 @@ cat << 'EOF' > index.html
       if (state.activeBet || fetchedMatches.length === 0) return null;
 
       return fetchedMatches.find(m => {
-        return m.homeScore === 0 && m.awayScore === 0 &&
-               m.elapsed >= state.settings.minMin && m.elapsed <= state.settings.maxMin &&
+        return m.elapsed >= state.settings.minMin && m.elapsed <= state.settings.maxMin &&
                m.odds >= state.settings.minOdds && m.odds <= state.settings.maxOdds &&
                m.conf >= state.settings.minConf;
       });
@@ -492,18 +482,13 @@ cat << 'EOF' > index.html
       }
 
       if (state.bypassFilters) {
-        let displayList = fetchedMatches;
-
-        if (!state.showAbsoluteAll) {
-          displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && (m.elapsed <= 45 || m.statusShort === '1H'));
-        }
+        const displayList = fetchedMatches;
 
         if (displayList.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-              <p>🌐 Connected to GitHub (${fetchedMatches.length} total games active globally).</p>
-              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 matches at 0-0 in the 1st Half</strong>.</p>
-              <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
+              <p>🌐 Connected to GitHub.</p>
+              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 active matches at 0-0</strong>. All scored matches have been automatically cleared.</p>
             </div>`;
           return;
         }
@@ -511,8 +496,6 @@ cat << 'EOF' > index.html
         let html = `<div style="max-height: 480px; overflow-y: auto; padding-right: 4px;">`;
         displayList.forEach(match => {
           const matchFullName = `${match.home} vs ${match.away}`;
-          
-          // Domain-scoped direct search links with strict quotes on team names
           const msportUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:msport.com/ng "${match.home}" "${match.away}"`);
           const bet9jaUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:bet9ja.com "${match.home}" "${match.away}"`);
 
@@ -522,7 +505,7 @@ cat << 'EOF' > index.html
                 <span class="league-badge">🏆 ${match.league} (${match.country})</span>
                 <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort})</span>
               </div>
-              <div class="match-teams" onclick="copyToClipboard('${matchFullName}')" title="Click to copy full match name">${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}</div>
+              <div class="match-teams" onclick="copyToClipboard('${matchFullName}')" title="Click to copy full match name">${match.home} 0 - 0 ${match.away}</div>
               <div class="match-stats-row">
                 <span class="stat-badge">Est. Odds: <strong>${match.odds.toFixed(2)}</strong></span>
                 <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
@@ -544,7 +527,7 @@ cat << 'EOF' > index.html
         container.innerHTML = `
           <div style="text-align: center; padding: 20px; color: var(--accent-amber);">
             <h3>⏳ Step ${state.currentStep} Active</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet to unlock the next pick.</p>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet below to unlock the next candidate.</p>
           </div>`;
         return;
       }
@@ -553,9 +536,9 @@ cat << 'EOF' > index.html
       if (!match) {
         container.innerHTML = `
           <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <p>🔍 GitHub Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
+            <p>🔍 Connected to GitHub (${fetchedMatches.length} 0-0 matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
             <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
-              👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to inspect all live 0-0 games directly.
+              👉 Click <strong>"🔓 Raw Matches (0-0 Only)"</strong> above to inspect all live 0-0 games directly.
             </p>
           </div>`;
         return;
@@ -590,6 +573,7 @@ cat << 'EOF' > index.html
       const match = fetchedMatches.find(m => m.id === matchId);
       if (!match) return;
 
+      // LOCK TEAM IN ACTIVE BET MONITOR TO PRESERVE BEFORE REMOVAL
       state.activeBet = {
         id: match.id,
         step: state.currentStep,
@@ -614,7 +598,7 @@ cat << 'EOF' > index.html
       const bet = state.activeBet;
       container.innerHTML = `
         <div style="background: var(--bg-main); border: 1px solid var(--accent-amber); padding: 16px; border-radius: 8px;">
-          <div style="font-size: 12px; font-weight: 700; color: var(--accent-amber); margin-bottom: 6px;">STEP ${bet.step} IN PROGRESS</div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--accent-amber); margin-bottom: 6px;">STEP ${bet.step} LOCKED & MONITORED</div>
           <div style="font-size: 16px; font-weight: 800; margin-bottom: 8px; cursor: pointer;" onclick="copyToClipboard('${bet.match}')">${bet.match}</div>
           <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
             ${bet.league} | Entry Min: ${bet.entryMinute}' | Odds: ${bet.odds}
@@ -649,6 +633,7 @@ cat << 'EOF' > index.html
         state.currentStep = 1;
       }
 
+      // CLEAR LOCKED BET TO MAKE WAY FOR THE NEXT 0-0 MATCH
       state.activeBet = null;
       saveState();
     }
