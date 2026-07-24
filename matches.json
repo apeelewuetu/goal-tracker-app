@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "league": "Premier League",
+    "country": "England",
+    "home": "Arsenal",
+    "away": "Chelsea",
+    "elapsed": 22,
+    "homeScore": 0,
+    "awayScore": 0,
+    "statusShort": "1H",
+    "odds": 1.18,
+    "conf": 82
+  }
+]
