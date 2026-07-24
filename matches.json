@@ -5,11 +5,11 @@
     "country": "World",
     "home": "Bournemouth",
     "away": "St. Pauli",
-    "elapsed": 66,
+    "elapsed": 67,
     "homeScore": 4,
     "awayScore": 1,
     "statusShort": "2H",
-    "odds": 1.41,
+    "odds": 1.42,
     "conf": 80
   },
   {
@@ -18,11 +18,11 @@
     "country": "World",
     "home": "GFK Tikves Kavadarci",
     "away": "Arsimi",
-    "elapsed": 26,
+    "elapsed": 27,
     "homeScore": 2,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.21,
+    "odds": 1.22,
     "conf": 80
   }
 ]
