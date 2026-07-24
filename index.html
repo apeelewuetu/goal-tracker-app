@@ -79,6 +79,8 @@ cat << 'EOF' > index.html
 
     .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
     .action-row .btn { flex: 1; min-width: 110px; justify-content: center; }
+    .btn-delete { background-color: var(--accent-red); color: white; padding: 4px 10px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; font-weight: 700; }
+    .btn-delete:hover { opacity: 0.8; }
 
     /* Toast Notification */
     #toast {
@@ -123,6 +125,8 @@ cat << 'EOF' > index.html
         <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Pause Sync</button>
         <button class="btn btn-primary" onclick="manualScan()">🔄 Sync GitHub API</button>
         <button class="btn btn-secondary" onclick="exportHistory('CSV')">📥 Export CSV</button>
+        <button class="btn btn-secondary" onclick="exportHistory('XLSX')">📊 Export Excel</button>
+        <button class="btn btn-secondary" onclick="exportHistory('PDF')">📄 Export PDF</button>
       </div>
     </div>
 
@@ -158,7 +162,7 @@ cat << 'EOF' > index.html
 
           <div id="filterBypassNotice" style="display: none; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--accent-purple); color: #ddd; padding: 12px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <span>⚠️ <strong>Auto-Purge Active:</strong> Only games currently at <strong style="color:var(--accent-green);">0-0 (1st Half)</strong> are displayed. Matches automatically vanish once a goal is scored.</span>
+              <span>⚠️ <strong>Auto-Purge Active:</strong> Only games currently at <strong style="color:var(--accent-green);">0-0 (1st Half)</strong> are displayed. Matches automatically vanish once a goal is scored or manually removed.</span>
             </div>
           </div>
 
@@ -267,6 +271,7 @@ cat << 'EOF' > index.html
     };
 
     let fetchedMatches = [];
+    let dismissedIds = JSON.parse(localStorage.getItem('dismissed_matches') || '[]');
     let isFetching = false;
     let apiErrorMsg = "";
 
@@ -357,6 +362,12 @@ cat << 'EOF' > index.html
       saveState();
     }
 
+    function deleteMatch(id) {
+      dismissedIds.push(id);
+      localStorage.setItem('dismissed_matches', JSON.stringify(dismissedIds));
+      renderAll();
+    }
+
     function updateOfflineUI() {
       const btn = document.getElementById('toggleOnlineBtn');
       const bypassBtn = document.getElementById('bypassBtn');
@@ -381,7 +392,7 @@ cat << 'EOF' > index.html
       } else {
         btn.className = "btn btn-warning";
         btn.innerText = "🔌 Pause Sync";
-        badge.innerText = `● GitHub Active (${fetchedMatches.length} 0-0 Games)`;
+        badge.innerText = `● GitHub Active (${fetchedMatches.filter(m => !dismissedIds.includes(m.id)).length} 0-0 Games)`;
         badge.style.color = "var(--accent-green)";
       }
     }
@@ -448,9 +459,10 @@ cat << 'EOF' > index.html
     }
 
     function getBestCandidate() {
-      if (state.activeBet || fetchedMatches.length === 0) return null;
+      const activeList = fetchedMatches.filter(m => !dismissedIds.includes(m.id));
+      if (state.activeBet || activeList.length === 0) return null;
 
-      return fetchedMatches.find(m => {
+      return activeList.find(m => {
         return m.elapsed >= state.settings.minMin && m.elapsed <= state.settings.maxMin &&
                m.odds >= state.settings.minOdds && m.odds <= state.settings.maxOdds &&
                m.conf >= state.settings.minConf;
@@ -481,29 +493,32 @@ cat << 'EOF' > index.html
         return;
       }
 
-      if (state.bypassFilters) {
-        const displayList = fetchedMatches;
+      const activeList = fetchedMatches.filter(m => !dismissedIds.includes(m.id));
 
-        if (displayList.length === 0) {
+      if (state.bypassFilters) {
+        if (activeList.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--text-muted);">
               <p>🌐 Connected to GitHub.</p>
-              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 active matches at 0-0</strong>. All scored matches have been automatically cleared.</p>
+              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 active matches at 0-0</strong>. All scored or removed matches have been cleared.</p>
             </div>`;
           return;
         }
 
         let html = `<div style="max-height: 480px; overflow-y: auto; padding-right: 4px;">`;
-        displayList.forEach(match => {
+        activeList.forEach(match => {
           const matchFullName = `${match.home} vs ${match.away}`;
           const msportUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:msport.com/ng "${match.home}" "${match.away}"`);
           const bet9jaUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:bet9ja.com "${match.home}" "${match.away}"`);
 
+          let timeStr = typeof match.elapsed === 'object' ? (match.elapsed.short || match.elapsed.long || '1H') : (match.elapsed + '’');
+
           html += `
             <div class="rec-card bypass">
+              <button class="btn-delete" onclick="deleteMatch(${match.id})" style="position: absolute; top: 16px; right: 16px;">✕ Remove</button>
               <div class="rec-header">
                 <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort})</span>
+                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${timeStr} (${match.statusShort})</span>
               </div>
               <div class="match-teams" onclick="copyToClipboard('${matchFullName}')" title="Click to copy full match name">${match.home} 0 - 0 ${match.away}</div>
               <div class="match-stats-row">
@@ -536,7 +551,7 @@ cat << 'EOF' > index.html
       if (!match) {
         container.innerHTML = `
           <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <p>🔍 Connected to GitHub (${fetchedMatches.length} 0-0 matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
+            <p>🔍 Connected to GitHub (${activeList.length} 0-0 matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
             <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
               👉 Click <strong>"🔓 Raw Matches (0-0 Only)"</strong> above to inspect all live 0-0 games directly.
             </p>
@@ -547,12 +562,14 @@ cat << 'EOF' > index.html
       const matchFullName = `${match.home} vs ${match.away}`;
       const msportUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:msport.com/ng "${match.home}" "${match.away}"`);
       const bet9jaUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:bet9ja.com "${match.home}" "${match.away}"`);
+      let timeStr = typeof match.elapsed === 'object' ? (match.elapsed.short || match.elapsed.long || '1H') : (match.elapsed + '’');
 
       container.innerHTML = `
         <div class="rec-card">
+          <button class="btn-delete" onclick="deleteMatch(${match.id})" style="position: absolute; top: 16px; right: 16px;">✕ Remove</button>
           <div class="rec-header">
             <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-            <span style="color: var(--accent-green); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}'</span>
+            <span style="color: var(--accent-green); font-weight: 700; font-size: 13px;">LIVE: ${timeStr}</span>
           </div>
           <div class="match-teams" onclick="copyToClipboard('${matchFullName}')" title="Click to copy full match name">${match.home} vs ${match.away}</div>
           <div class="match-stats-row">
@@ -573,7 +590,6 @@ cat << 'EOF' > index.html
       const match = fetchedMatches.find(m => m.id === matchId);
       if (!match) return;
 
-      // LOCK TEAM IN ACTIVE BET MONITOR TO PRESERVE BEFORE REMOVAL
       state.activeBet = {
         id: match.id,
         step: state.currentStep,
@@ -633,7 +649,6 @@ cat << 'EOF' > index.html
         state.currentStep = 1;
       }
 
-      // CLEAR LOCKED BET TO MAKE WAY FOR THE NEXT 0-0 MATCH
       state.activeBet = null;
       saveState();
     }
@@ -677,9 +692,10 @@ cat << 'EOF' > index.html
       document.getElementById('kpiWinRate').innerText = `${total > 0 ? Math.round((wins / total) * 100) : 0}%`;
       document.getElementById('kpiStreak').innerText = `${state.streak} 🔥`;
 
+      const activeCount = fetchedMatches.filter(m => !dismissedIds.includes(m.id)).length;
       const rawKpEl = document.getElementById('kpiRawMatches');
-      rawKpEl.innerText = fetchedMatches.length;
-      rawKpEl.style.color = fetchedMatches.length > 0 ? "var(--accent-green)" : "var(--accent-amber)";
+      rawKpEl.innerText = activeCount;
+      rawKpEl.style.color = activeCount > 0 ? "var(--accent-green)" : "var(--accent-amber)";
     }
 
     function renderAll() {
@@ -699,16 +715,39 @@ cat << 'EOF' > index.html
 
     function exportHistory(type) {
       if (state.history.length === 0) return alert("No history records available.");
-      let csv = "Step,Date Time,League,Match,Entry Minute,Odds,Result,Note\n";
-      state.history.forEach(h => {
-        csv += `"${h.step}","${h.dateTime}","${h.league}","${h.match}","${h.entryMinute}","${h.odds}","${h.result}","${h.note || ''}"\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv' });
+      
+      if (type === 'PDF') {
+        window.print();
+        return;
+      }
+
+      let content = "";
+      let mimeType = "";
+      let extension = "";
+
+      if (type === 'XLSX') {
+        mimeType = 'application/vnd.ms-excel';
+        extension = 'xls';
+        content = "Step\tDate Time\tLeague\tMatch\tEntry Minute\tOdds\tResult\tNote\n";
+        state.history.forEach(h => {
+          content += `${h.step}\t${h.dateTime}\t${h.league}\t${h.match}\t${h.entryMinute}\t${h.odds}\t${h.result}\t${h.note || ''}\n`;
+        });
+      } else {
+        mimeType = 'text/csv';
+        extension = 'csv';
+        content = "Step,Date Time,League,Match,Entry Minute,Odds,Result,Note\n";
+        state.history.forEach(h => {
+          content += `"${h.step}","${h.dateTime}","${h.league}","${h.match}","${h.entryMinute}","${h.odds}","${h.result}","${h.note || ''}"\n`;
+        });
+      }
+
+      const blob = new Blob([content], { type: mimeType });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Rollover_History_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `rollover_history_${new Date().toISOString().slice(0,10)}.${extension}`;
       a.click();
+      window.URL.revokeObjectURL(url);
     }
 
     window.onload = init;
