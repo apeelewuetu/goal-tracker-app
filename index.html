@@ -1,16 +1,15 @@
-cat << 'EOF' > index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Over 0.5 Goal Rollover Assistant</title>
+  <title>Over 0.5 Goal Scanner Dashboard</title>
   <style>
     :root {
-      --bg-main: #0b0f19;
-      --bg-card: #151c2c;
-      --border-color: #232d42;
-      --text-main: #f1f5f9;
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --accent-green: #10b981;
       --accent-green-bg: rgba(16, 185, 129, 0.15);
@@ -19,652 +18,542 @@ cat << 'EOF' > index.html
       --accent-red: #ef4444;
       --accent-red-bg: rgba(239, 68, 68, 0.15);
       --accent-blue: #3b82f6;
-      --accent-purple: #8b5cf6;
+      --accent-purple: #a855f7;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; line-height: 1.5; }
-    .container { max-width: 1400px; margin: 0 auto; }
-
-    /* Header */
-    .app-header {
-      display: flex; justify-content: space-between; align-items: center;
-      background-color: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    .app-title h1 { font-size: 22px; font-weight: 800; color: var(--accent-blue); display: flex; align-items: center; gap: 10px; }
-    .app-title p { font-size: 13px; color: var(--text-muted); }
-    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-    .btn {
-      padding: 10px 16px; border-radius: 6px; border: none; font-weight: 600; font-size: 13px;
-      cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      padding: 24px;
+      min-height: 100vh;
     }
-    .btn-primary { background-color: var(--accent-blue); color: #fff; }
-    .btn-success { background-color: var(--accent-green); color: #0b0f19; font-weight: 700; }
-    .btn-danger { background-color: var(--accent-red); color: #fff; }
-    .btn-secondary { background-color: var(--border-color); color: var(--text-main); }
-    .btn-warning { background-color: var(--accent-amber); color: #0b0f19; font-weight: 700; }
-    .btn-purple { background-color: var(--accent-purple); color: #fff; font-weight: 700; }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-    /* KPI Grid */
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .kpi-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; }
-    .kpi-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 6px; }
-    .kpi-value { font-size: 24px; font-weight: 800; }
-    .kpi-value.green { color: var(--accent-green); }
-    .kpi-value.amber { color: var(--accent-amber); }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
 
-    /* Grid Layout */
-    .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px; }
-    @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+    /* Top Action Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
 
-    .panel { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
-    .panel-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .api-input-group {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+      max-width: 500px;
+    }
 
-    /* Cards */
-    .rec-card { background-color: var(--bg-main); border: 2px solid var(--accent-blue); border-radius: 8px; padding: 20px; position: relative; margin-bottom: 12px; }
-    .rec-card.bypass { border-color: var(--accent-purple); }
-    .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .league-badge { font-size: 12px; font-weight: 600; color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; }
-    .match-teams { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
-    .match-stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; }
-    .stat-badge { background-color: var(--bg-card); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
+    .api-input-group input {
+      flex: 1;
+      background-color: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 6px;
+      outline: none;
+      font-size: 14px;
+    }
 
-    /* Form Controls */
-    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 12px; color: var(--text-muted); }
-    .form-group input { background-color: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 6px; outline: none; }
+    .btn-primary {
+      background-color: var(--accent-blue);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .mode-badge {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .stat-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .stat-value.green {
+      color: var(--accent-green);
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-green);
+      margin-right: 6px;
+    }
+
+    /* Filters Bar */
+    .filter-bar {
+      display: flex;
+      gap: 16px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px 8px 0 0;
+      padding: 16px 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar input, .filter-bar select {
+      background-color: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .sort-container {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
 
     /* Table */
-    .table-container { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-    th { background-color: var(--bg-main); padding: 12px 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid var(--border-color); }
-    td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); }
-    .badge-status { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .status-won { background-color: var(--accent-green-bg); color: var(--accent-green); }
-    .status-lost { background-color: var(--accent-red-bg); color: var(--accent-red); }
-    .note-input { background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; width: 100%; font-size: 12px; }
+    .table-container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background-color: rgba(15, 23, 42, 0.4);
+      padding: 14px 20px;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.good-opportunity {
+      background-color: var(--accent-green-bg);
+      border-left: 4px solid var(--accent-green);
+    }
+
+    .match-team {
+      font-weight: 600;
+    }
+
+    .badge-opp {
+      background-color: var(--accent-green);
+      color: #0f172a;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+    }
+
+    .badge-friendly {
+      background-color: var(--accent-purple);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      text-transform: uppercase;
+    }
+
+    .half-tag {
+      background-color: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .odds-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .odds-pill.green {
+      background-color: var(--accent-green);
+      color: #0f172a;
+    }
+
+    .odds-pill.amber {
+      background-color: var(--accent-amber);
+      color: #0f172a;
+    }
+
+    .odds-pill.red {
+      background-color: var(--accent-red);
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <!-- Header -->
-    <div class="app-header">
-      <div class="app-title">
-        <h1>⚡ LIVE OVER 0.5 GOAL ROLLOVER ASSISTANT</h1>
-        <p>Target: 12 Sequential Live Rollovers (GitHub Data Feed)</p>
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="api-input-group">
+        <input type="password" id="apiKeyInput" placeholder="Enter API-Football (RapidAPI) Key...">
+        <button class="btn-primary" onclick="connectAPI()">Connect Live API</button>
       </div>
-      <div class="header-actions">
-        <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
-        <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Pause Sync</button>
-        <button class="btn btn-primary" onclick="manualScan()">🔄 Sync GitHub API</button>
-        <button class="btn btn-secondary" onclick="exportHistory('CSV')">📥 Export CSV</button>
-      </div>
+      <div class="mode-badge" id="modeBadge">Mode: Simulated Demo</div>
     </div>
 
-    <!-- KPIs -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-title">Daily Progress</div>
-        <div class="kpi-value amber" id="kpiProgress">0 / 12</div>
+    <!-- Stats Bar -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">Total Live Matches</div>
+        <div class="stat-value" id="totalMatches">6</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Win Rate</div>
-        <div class="kpi-value green" id="kpiWinRate">0%</div>
+      <div class="stat-card">
+        <div class="stat-title">Good Opportunities</div>
+        <div class="stat-value green" id="goodOpps">3</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Current Streak</div>
-        <div class="kpi-value green" id="kpiStreak">0 🔥</div>
+      <div class="stat-card">
+        <div class="stat-title">Current Time</div>
+        <div class="stat-value" id="clock">00:00:00</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Raw Live Matches</div>
-        <div class="kpi-value" id="kpiRawMatches">0</div>
-      </div>
-    </div>
-
-    <!-- Main Grid -->
-    <div class="main-grid">
-      <!-- Left Column -->
-      <div>
-        <div class="panel">
-          <div class="panel-header">
-            <span class="panel-title">🎯 Live Matches & Recommendation (Step <span id="currentStepNum">1</span>)</span>
-            <span id="scanStatusBadge" style="font-size: 12px; color: var(--accent-green);">● GitHub Sync Active</span>
-          </div>
-
-          <div id="filterBypassNotice" style="display: none; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--accent-purple); color: #ddd; padding: 12px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <span>⚠️ <strong>Filter Bypass Mode:</strong> Showing raw live matches currently at <strong style="color:var(--accent-green);">0-0 (1st Half, 1'-45')</strong>.</span>
-              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleStrictBypass()">
-                <span id="strictBypassLabel">Show All GitHub Live Matches</span>
-              </button>
-            </div>
-          </div>
-
-          <div id="recommendationContainer"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <span class="panel-title">⏳ Active Bet Monitor</span>
-          </div>
-          <div id="activeBetContainer">
-            <p style="color: var(--text-muted); font-size: 13px;">No active bet currently locked.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Column: GitHub Config & Controls -->
-      <div>
-        <div class="panel">
-          <div class="panel-header">
-            <span class="panel-title">🐙 GitHub Data Endpoint Config</span>
-          </div>
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label>GitHub Raw JSON Data URL</label>
-            <input type="text" id="cfgGithubUrl" placeholder="https://raw.githubusercontent.com/username/repo/main/matches.json" onchange="updateSettings()">
-          </div>
-          <div style="display: flex; gap: 8px; margin-bottom: 20px;">
-            <button class="btn btn-primary" style="flex: 1;" onclick="saveUrlAndScan()">💾 Save Endpoint</button>
-          </div>
-
-          <div class="panel-header" style="margin-top: 20px;">
-            <span class="panel-title">⚙️ Strategy Filters</span>
-          </div>
-          <div class="settings-grid">
-            <div class="form-group">
-              <label>Min Minute</label>
-              <input type="number" id="cfgMinMin" value="10" onchange="updateSettings()">
-            </div>
-            <div class="form-group">
-              <label>Max Minute</label>
-              <input type="number" id="cfgMaxMin" value="35" onchange="updateSettings()">
-            </div>
-            <div class="form-group">
-              <label>Min Odds</label>
-              <input type="number" step="0.01" id="cfgMinOdds" value="1.10" onchange="updateSettings()">
-            </div>
-            <div class="form-group">
-              <label>Max Odds</label>
-              <input type="number" step="0.01" id="cfgMaxOdds" value="1.25" onchange="updateSettings()">
-            </div>
-            <div class="form-group">
-              <label>Min Conf. (%)</label>
-              <input type="number" id="cfgMinConf" value="65" onchange="updateSettings()">
-            </div>
-          </div>
-          <div style="margin-top: 16px;">
-            <button class="btn btn-danger" onclick="confirmResetDay()" style="width: 100%;">Reset Today's Rollover</button>
-          </div>
+      <div class="stat-card">
+        <div class="stat-title">Auto Refresh</div>
+        <div class="stat-value" style="font-size: 16px; margin-top: 8px;">
+          <span class="status-indicator"></span>Active (5m)
         </div>
       </div>
     </div>
 
-    <!-- Log -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">📜 Rollover History Log</span>
+    <!-- Filters Bar -->
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="Search team or league..." onkeyup="renderTable()">
+      <select id="leagueFilter" onchange="renderTable()">
+        <option value="ALL">All Leagues & Friendlies</option>
+        <option value="FRIENDLIES_ONLY">⚡ Friendlies (Testing)</option>
+        <option value="Premier League">Premier League</option>
+        <option value="La Liga">La Liga</option>
+        <option value="Serie A">Serie A</option>
+        <option value="Bundesliga">Bundesliga</option>
+        <option value="Ligue 1">Ligue 1</option>
+      </select>
+      <div class="sort-container">
+        <label for="sortBy">Sort by:</label>
+        <select id="sortBy" onchange="renderTable()">
+          <option value="MINUTE_DESC">Match Minute (High to Low)</option>
+          <option value="MINUTE_ASC">Match Minute (Low to High)</option>
+          <option value="ODDS_DESC">Odds (High to Low)</option>
+        </select>
       </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Step</th>
-              <th>Date / Time</th>
-              <th>League</th>
-              <th>Match</th>
-              <th>Entry Min</th>
-              <th>Odds</th>
-              <th>Result</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="historyTableBody"></tbody>
-        </table>
-      </div>
+    </div>
+
+    <!-- Matches Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>League</th>
+            <th>Match</th>
+            <th>Score</th>
+            <th>Time</th>
+            <th>Half</th>
+            <th>Over 0.5 Odds</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="matchesBody">
+          <!-- Rows render here dynamically -->
+        </tbody>
+      </table>
     </div>
   </div>
 
   <script>
-    let state = {
-      settings: { 
-        minMin: 10, 
-        maxMin: 35, 
-        minOdds: 1.10, 
-        maxOdds: 1.25, 
-        minConf: 65, 
-        githubUrl: "https://raw.githubusercontent.com/apeelewuetu/goal-tracker-app/main/matches.json" 
-      },
-      isOffline: false,
-      bypassFilters: true,
-      showAbsoluteAll: false,
-      currentStep: 1,
-      activeBet: null,
-      history: [],
-      streak: 0
-    };
+    let activeApiKey = "";
+    const RAPIDAPI_HOST = "free-api-live-football-data.p.rapidapi.com";
+    const ENDPOINT_PATH = "football-current-live";
 
-    let fetchedMatches = [];
-    let isFetching = false;
-    let apiErrorMsg = "";
+    // Standard list including Major Leagues + Friendlies
+    const PRESET_LEAGUES = [
+      "Premier League",
+      "La Liga",
+      "Serie A",
+      "Bundesliga",
+      "Ligue 1",
+      "Club Friendly",
+      "Int. Friendly"
+    ];
 
-    function init() {
-      const saved = localStorage.getItem('rollover_assistant_github_state');
-      if (saved) {
-        try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { console.error(e); }
-      }
-      syncUI();
-      renderAll();
-      if (!state.isOffline) {
-        fetchGithubMatches();
-      }
-      setInterval(() => {
-        if (!state.isOffline) {
-          fetchGithubMatches();
-        }
-      }, 60000);
+    // Master Demo Data: Combines domestic leagues + active testing friendlies
+    let matchesData = [
+      { id: 1, league: "Club Friendly", home: "Manchester United", away: "Real Betis", homeScore: 0, awayScore: 0, elapsed: 28, odds: 1.18, isOpp: true, isFriendly: true },
+      { id: 2, league: "Club Friendly", home: "Liverpool", away: "Sevilla", homeScore: 0, awayScore: 0, elapsed: 31, odds: 1.17, isOpp: true, isFriendly: true },
+      { id: 3, league: "Int. Friendly", home: "Japan", away: "South Korea", homeScore: 0, awayScore: 0, elapsed: 19, odds: 1.15, isOpp: true, isFriendly: true },
+      { id: 4, league: "Serie A", home: "AC Milan", away: "Inter", homeScore: 0, awayScore: 0, elapsed: 42, odds: 1.16, isOpp: false, isFriendly: false },
+      { id: 5, league: "Premier League", home: "Arsenal", away: "Chelsea", homeScore: 1, awayScore: 0, elapsed: 32, odds: 1.08, isOpp: false, isFriendly: false },
+      { id: 6, league: "La Liga", home: "Real Madrid", away: "Barcelona", homeScore: 0, awayScore: 1, elapsed: 18, odds: 1.07, isOpp: false, isFriendly: false }
+    ];
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString();
     }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    function saveState() {
-      localStorage.setItem('rollover_assistant_github_state', JSON.stringify(state));
-      renderAll();
-    }
+    function populateLeagues() {
+      const select = document.getElementById('leagueFilter');
+      const apiLeagues = [...new Set(matchesData.map(m => m.league))];
+      const combinedLeagues = [...new Set([...PRESET_LEAGUES, ...apiLeagues])];
 
-    function syncUI() {
-      document.getElementById('cfgMinMin').value = state.settings.minMin;
-      document.getElementById('cfgMaxMin').value = state.settings.maxMin;
-      document.getElementById('cfgMinOdds').value = state.settings.minOdds;
-      document.getElementById('cfgMaxOdds').value = state.settings.maxOdds;
-      document.getElementById('cfgMinConf').value = state.settings.minConf;
-      document.getElementById('cfgGithubUrl').value = state.settings.githubUrl || "";
-      updateOfflineUI();
-    }
+      select.innerHTML = `
+        <option value="ALL">All Leagues & Friendlies</option>
+        <option value="FRIENDLIES_ONLY">⚡ Friendlies (Testing)</option>
+      `;
 
-    function updateSettings() {
-      state.settings.minMin = parseInt(document.getElementById('cfgMinMin').value) || 10;
-      state.settings.maxMin = parseInt(document.getElementById('cfgMaxMin').value) || 35;
-      state.settings.minOdds = parseFloat(document.getElementById('cfgMinOdds').value) || 1.10;
-      state.settings.maxOdds = parseFloat(document.getElementById('cfgMaxOdds').value) || 1.25;
-      state.settings.minConf = parseInt(document.getElementById('cfgMinConf').value) || 65;
-      state.settings.githubUrl = document.getElementById('cfgGithubUrl').value.trim();
-      saveState();
-    }
-
-    function saveUrlAndScan() {
-      updateSettings();
-      state.isOffline = false;
-      updateOfflineUI();
-      fetchGithubMatches();
-    }
-
-    function toggleOfflineMode() {
-      state.isOffline = !state.isOffline;
-      saveState();
-      updateOfflineUI();
-      if (!state.isOffline) fetchGithubMatches();
-    }
-
-    function toggleFilterBypass() {
-      state.bypassFilters = !state.bypassFilters;
-      saveState();
-    }
-
-    function toggleStrictBypass() {
-      state.showAbsoluteAll = !state.showAbsoluteAll;
-      saveState();
-    }
-
-    function updateOfflineUI() {
-      const btn = document.getElementById('toggleOnlineBtn');
-      const bypassBtn = document.getElementById('bypassBtn');
-      const badge = document.getElementById('scanStatusBadge');
-      const notice = document.getElementById('filterBypassNotice');
-      const strictLabel = document.getElementById('strictBypassLabel');
-
-      if (state.bypassFilters) {
-        bypassBtn.className = "btn btn-success";
-        bypassBtn.innerText = "🔒 Apply Strategy Filters";
-        notice.style.display = "block";
-        if (strictLabel) {
-          strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All GitHub Live Matches";
-        }
-      } else {
-        bypassBtn.className = "btn btn-purple";
-        bypassBtn.innerText = "🔓 Raw Matches (0-0 1st Half)";
-        notice.style.display = "none";
-      }
-
-      if (state.isOffline) {
-        btn.className = "btn btn-success";
-        btn.innerText = "⚡ Resume Sync";
-        badge.innerText = "⏸️ Sync Paused";
-        badge.style.color = "var(--accent-amber)";
-      } else {
-        btn.className = "btn btn-warning";
-        btn.innerText = "🔌 Pause Sync";
-        badge.innerText = `● GitHub Active (${fetchedMatches.length} Live Games)`;
-        badge.style.color = "var(--accent-green)";
-      }
-    }
-
-    function manualScan() {
-      if (state.isOffline) state.isOffline = false;
-      fetchGithubMatches();
-    }
-
-    async function fetchGithubMatches() {
-      if (state.isOffline || isFetching) return;
-
-      isFetching = true;
-      apiErrorMsg = "";
-      const statusBadge = document.getElementById('scanStatusBadge');
-      statusBadge.innerText = "🔄 Syncing with GitHub...";
-      statusBadge.style.color = "var(--accent-blue)";
-
-      const url = state.settings.githubUrl + "?t=" + new Date().getTime();
-
-      try {
-        let res = await fetch(url);
-        if (res.ok) {
-          let json = await res.json();
-          let rawList = Array.isArray(json) ? json : (json.response || json.matches || []);
-
-          fetchedMatches = rawList.map((item, idx) => {
-            const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
-            const homeScore = item.homeScore ?? item.goals?.home ?? 0;
-            const awayScore = item.awayScore ?? item.goals?.away ?? 0;
-            const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
-
-            return {
-              id: item.id || idx + 1,
-              league: item.league || item.league?.name || "Global League",
-              country: item.country || item.league?.country || "World",
-              home: item.home || item.teams?.home?.name || "Home Team",
-              away: item.away || item.teams?.away?.name || "Away Team",
-              elapsed: elapsed,
-              homeScore: homeScore,
-              awayScore: awayScore,
-              statusShort: item.statusShort || item.fixture?.status?.short || "1H",
-              odds: estimatedOdds,
-              conf: item.conf || 75
-            };
-          });
-        } else {
-          apiErrorMsg = `Failed to load GitHub file (HTTP ${res.status}). Verify the file URL in settings.`;
-          fetchedMatches = [];
-        }
-      } catch (e) {
-        console.error(e);
-        apiErrorMsg = "Unable to reach GitHub data endpoint. Check your repository URL or internet connection.";
-        fetchedMatches = [];
-      }
-
-      isFetching = false;
-      updateOfflineUI();
-      renderAll();
-    }
-
-    function getBestCandidate() {
-      if (state.activeBet || fetchedMatches.length === 0) return null;
-
-      return fetchedMatches.find(m => {
-        return m.homeScore === 0 && m.awayScore === 0 &&
-               m.elapsed >= state.settings.minMin && m.elapsed <= state.settings.maxMin &&
-               m.odds >= state.settings.minOdds && m.odds <= state.settings.maxOdds &&
-               m.conf >= state.settings.minConf;
+      combinedLeagues.forEach(l => {
+        select.innerHTML += `<option value="${l}">${l}</option>`;
       });
     }
 
-    function renderRecommendation() {
-      const container = document.getElementById('recommendationContainer');
-      document.getElementById('currentStepNum').innerText = state.currentStep;
+    function renderTable() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const leagueFilter = document.getElementById('leagueFilter').value;
+      const sortBy = document.getElementById('sortBy').value;
 
-      if (state.isOffline) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 25px; color: var(--accent-amber);">
-            <h3>⏸️ Sync is Currently Paused</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
-              Click <strong>"⚡ Resume Sync"</strong> or <strong>"🔄 Sync GitHub API"</strong> to refresh.
-            </p>
-          </div>`;
-        return;
-      }
-
-      if (apiErrorMsg && fetchedMatches.length === 0) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 20px; color: var(--accent-red);">
-            <h3>⚠️ GitHub Data Endpoint Alert</h3>
-            <p style="font-size: 13px; margin-top: 6px;">${apiErrorMsg}</p>
-          </div>`;
-        return;
-      }
-
-      if (state.bypassFilters) {
-        let displayList = fetchedMatches;
-
-        if (!state.showAbsoluteAll) {
-          displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && (m.elapsed <= 45 || m.statusShort === '1H'));
+      let filtered = matchesData.filter(m => {
+        const matchesSearch = m.home.toLowerCase().includes(search) || 
+                              m.away.toLowerCase().includes(search) || 
+                              m.league.toLowerCase().includes(search);
+        
+        let matchesLeague = true;
+        if (leagueFilter === "FRIENDLIES_ONLY") {
+          matchesLeague = m.isFriendly || m.league.toLowerCase().includes('friendly');
+        } else if (leagueFilter !== "ALL") {
+          matchesLeague = m.league === leagueFilter;
         }
 
-        if (displayList.length === 0) {
-          container.innerHTML = `
-            <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-              <p>🌐 Connected to GitHub (${fetchedMatches.length} total games active globally).</p>
-              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 matches at 0-0 in the 1st Half</strong>.</p>
-              <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
-            </div>`;
-          return;
-        }
-
-        let html = `<div style="max-height: 480px; overflow-y: auto; padding-right: 4px;">`;
-        displayList.forEach(match => {
-          html += `
-            <div class="rec-card bypass">
-              <div class="rec-header">
-                <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort})</span>
-              </div>
-              <div class="match-teams">${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}</div>
-              <div class="match-stats-row">
-                <span class="stat-badge">Est. Odds: <strong>${match.odds.toFixed(2)}</strong></span>
-                <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
-              </div>
-              <button class="btn btn-purple" style="width: 100%; font-size: 13px; padding: 8px;" onclick="placeBet(${match.id})">
-                ✔ Lock Bet (Step ${state.currentStep})
-              </button>
-            </div>`;
-        });
-        html += `</div>`;
-        container.innerHTML = html;
-        return;
-      }
-
-      if (state.activeBet) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 20px; color: var(--accent-amber);">
-            <h3>⏳ Step ${state.currentStep} Active</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet to unlock the next pick.</p>
-          </div>`;
-        return;
-      }
-
-      const match = getBestCandidate();
-      if (!match) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <p>🔍 GitHub Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
-            <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
-              👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to inspect all live 0-0 games directly.
-            </p>
-          </div>`;
-        return;
-      }
-
-      container.innerHTML = `
-        <div class="rec-card">
-          <div class="rec-header">
-            <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-            <span style="color: var(--accent-green); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}'</span>
-          </div>
-          <div class="match-teams">${match.home} vs ${match.away}</div>
-          <div class="match-stats-row">
-            <span class="stat-badge">Score: <strong>0 - 0</strong></span>
-            <span class="stat-badge">Est. Live Odds: <strong>${match.odds.toFixed(2)}</strong></span>
-            <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
-          </div>
-          <button class="btn btn-success" style="width: 100%; font-size: 15px; padding: 12px;" onclick="placeBet(${match.id})">
-            ✔ Lock Bet (Step ${state.currentStep})
-          </button>
-        </div>`;
-    }
-
-    function placeBet(matchId) {
-      const match = fetchedMatches.find(m => m.id === matchId);
-      if (!match) return;
-
-      state.activeBet = {
-        id: match.id,
-        step: state.currentStep,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        league: match.league,
-        match: `${match.home} vs ${match.away}`,
-        entryMinute: match.elapsed,
-        odds: match.odds,
-        conf: match.conf
-      };
-
-      saveState();
-    }
-
-    function renderActiveBet() {
-      const container = document.getElementById('activeBetContainer');
-      if (!state.activeBet) {
-        container.innerHTML = `<p style="color: var(--text-muted); font-size: 13px;">No active bet currently locked.</p>`;
-        return;
-      }
-
-      const bet = state.activeBet;
-      container.innerHTML = `
-        <div style="background: var(--bg-main); border: 1px solid var(--accent-amber); padding: 16px; border-radius: 8px;">
-          <div style="font-size: 12px; font-weight: 700; color: var(--accent-amber); margin-bottom: 6px;">STEP ${bet.step} IN PROGRESS</div>
-          <div style="font-size: 16px; font-weight: 800; margin-bottom: 8px;">${bet.match}</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-            ${bet.league} | Entry Min: ${bet.entryMinute}' | Odds: ${bet.odds}
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-success" style="flex: 1;" onclick="resolveActiveBet(true)">✅ Goal Scored (WIN)</button>
-            <button class="btn btn-danger" style="flex: 1;" onclick="resolveActiveBet(false)">❌ Ended 0-0 (LOSS)</button>
-          </div>
-        </div>`;
-    }
-
-    function resolveActiveBet(isWin) {
-      if (!state.activeBet) return;
-
-      const bet = state.activeBet;
-      state.history.unshift({
-        step: bet.step,
-        dateTime: `${new Date().toLocaleDateString()} ${bet.timestamp}`,
-        league: bet.league,
-        match: bet.match,
-        entryMinute: `${bet.entryMinute}'`,
-        odds: typeof bet.odds === 'number' ? bet.odds.toFixed(2) : bet.odds,
-        result: isWin ? "WON" : "LOST",
-        note: ""
+        return matchesSearch && matchesLeague;
       });
 
-      if (isWin) {
-        state.streak += 1;
-        state.currentStep += 1;
-      } else {
-        state.streak = 0;
-        state.currentStep = 1;
-      }
+      if (sortBy === 'MINUTE_DESC') filtered.sort((a,b) => b.elapsed - a.elapsed);
+      if (sortBy === 'MINUTE_ASC') filtered.sort((a,b) => a.elapsed - b.elapsed);
+      if (sortBy === 'ODDS_DESC') filtered.sort((a,b) => b.odds - a.odds);
 
-      state.activeBet = null;
-      saveState();
-    }
-
-    function renderHistory() {
-      const tbody = document.getElementById('historyTableBody');
+      const tbody = document.getElementById('matchesBody');
       tbody.innerHTML = '';
 
-      if (state.history.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">No historical bets recorded.</td></tr>`;
+      let oppCount = 0;
+
+      filtered.forEach(m => {
+        if (m.isOpp) oppCount++;
+
+        let oddsClass = 'amber';
+        if (m.odds >= 1.15 && m.odds <= 1.20) oddsClass = 'green';
+        if (m.odds < 1.10) oddsClass = 'red';
+
+        const row = document.createElement('tr');
+        if (m.isOpp) row.className = 'good-opportunity';
+
+        row.innerHTML = `
+          <td>
+            ${m.league}
+            ${m.isFriendly ? '<span class="badge-friendly">Friendly</span>' : ''}
+          </td>
+          <td>
+            <span class="match-team">${m.home} vs ${m.away}</span>
+            ${m.isOpp ? '<span class="badge-opp">Good Opportunity</span>' : ''}
+          </td>
+          <td><strong>${m.homeScore} - ${m.awayScore}</strong></td>
+          <td>${m.elapsed}'</td>
+          <td><span class="half-tag">${m.elapsed > 45 ? '2nd Half' : '1st Half'}</span></td>
+          <td><span class="odds-pill ${oddsClass}">${m.odds.toFixed(2)}</span></td>
+          <td>Live</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('totalMatches').innerText = matchesData.length;
+      document.getElementById('goodOpps').innerText = oppCount;
+    }
+
+    async function fetchLiveMatches() {
+      if (!activeApiKey) return;
+
+      try {
+        const res = await fetch(`https://${RAPIDAPI_HOST}/${ENDPOINT_PATH}`, {
+          method: "GET",
+          headers: {
+            "x-rapidapi-key": activeApiKey,
+            "x-rapidapi-host": RAPIDAPI_HOST
+          }
+        });
+
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+        const json = await res.json();
+        const rawData = json.response || json.data || json.result || [];
+        const data = Array.isArray(rawData) ? rawData : (rawData.matches || rawData.live || []);
+
+        matchesData = data.map((item, idx) => {
+          // Robust multi-schema parsing for minute elapsed
+          const elapsed = parseInt(
+            item.fixture?.status?.elapsed ?? 
+            item.status?.elapsed ?? 
+            item.status?.liveTime?.short ?? 
+            item.elapsed ?? 0
+          ) || 0;
+
+          // Robust multi-schema parsing for scores
+          const homeScore = parseInt(
+            item.goals?.home ?? 
+            item.scores?.home ?? 
+            item.home?.score ?? 
+            item.scores?.fulltime?.home ?? 0
+          ) || 0;
+
+          const awayScore = parseInt(
+            item.goals?.away ?? 
+            item.scores?.away ?? 
+            item.away?.score ?? 
+            item.scores?.fulltime?.away ?? 0
+          ) || 0;
+
+          // Robust multi-schema parsing for league name
+          const leagueName = 
+            item.league?.name ?? 
+            item.competition?.name ?? 
+            item.leagueName ?? 
+            "Match";
+
+          // Robust multi-schema parsing for teams
+          const homeName = item.teams?.home?.name ?? item.home?.name ?? "Home";
+          const awayName = item.teams?.away?.name ?? item.away?.name ?? "Away";
+
+          // Odds calculation with safety fallback
+          const rawOdds = item.odds?.over05 ?? (1.05 + (elapsed * 0.0035));
+          const odds = parseFloat(parseFloat(rawOdds).toFixed(2));
+
+          const isScoreless = (homeScore === 0) && (awayScore === 0);
+          const isTimeWindow = elapsed >= 15 && elapsed <= 35;
+          const isOddsTarget = odds >= 1.15 && odds <= 1.20;
+
+          // Regex matching for all friendly formats
+          const isFriendly = /friendly|exhibition|tour|club match/i.test(leagueName);
+
+          return {
+            id: item.fixture?.id || item.id || idx,
+            league: leagueName,
+            home: homeName,
+            away: awayName,
+            homeScore: homeScore,
+            awayScore: awayScore,
+            elapsed: elapsed,
+            odds: odds,
+            isOpp: isScoreless && isTimeWindow && isOddsTarget,
+            isFriendly: isFriendly
+          };
+        });
+
+        populateLeagues();
+        renderTable();
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
+    }
+
+    function connectAPI() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key) {
+        alert("Please enter a valid RapidAPI Key");
         return;
       }
-
-      state.history.forEach((item, idx) => {
-        const tr = document.createElement('tr');
-        const isWin = item.result === "WON";
-        tr.innerHTML = `
-          <td><strong>#${item.step}</strong></td>
-          <td>${item.dateTime}</td>
-          <td>${item.league}</td>
-          <td><strong>${item.match}</strong></td>
-          <td>${item.entryMinute}</td>
-          <td>${item.odds}</td>
-          <td><span class="badge-status ${isWin ? 'status-won' : 'status-lost'}">${item.result}</span></td>
-          <td><input type="text" class="note-input" value="${item.note || ''}" onchange="updateNote(${idx}, this.value)"></td>`;
-        tbody.appendChild(tr);
-      });
+      activeApiKey = key;
+      document.getElementById('modeBadge').innerText = "Mode: Live API Connected";
+      document.getElementById('modeBadge').style.color = "#10b981";
+      fetchLiveMatches();
     }
 
-    function updateNote(idx, val) {
-      if (state.history[idx]) {
-        state.history[idx].note = val;
-        saveState();
-      }
-    }
+    // Auto Refresh live data every 5 minutes (300000 ms)
+    setInterval(() => {
+      if (activeApiKey) fetchLiveMatches();
+    }, 300000);
 
-    function renderKPIs() {
-      document.getElementById('kpiProgress').innerText = `${state.currentStep - 1} / 12`;
-      const total = state.history.length;
-      const wins = state.history.filter(h => h.result === "WON").length;
-      document.getElementById('kpiWinRate').innerText = `${total > 0 ? Math.round((wins / total) * 100) : 0}%`;
-      document.getElementById('kpiStreak').innerText = `${state.streak} 🔥`;
-
-      const rawKpEl = document.getElementById('kpiRawMatches');
-      rawKpEl.innerText = fetchedMatches.length;
-      rawKpEl.style.color = fetchedMatches.length > 0 ? "var(--accent-green)" : "var(--accent-amber)";
-    }
-
-    function renderAll() {
-      renderKPIs();
-      renderRecommendation();
-      renderActiveBet();
-      renderHistory();
-    }
-
-    function confirmResetDay() {
-      if (confirm("Reset current daily rollover back to Step 1?")) {
-        state.currentStep = 1;
-        state.activeBet = null;
-        saveState();
-      }
-    }
-
-    function exportHistory(type) {
-      if (state.history.length === 0) return alert("No history records available.");
-      let csv = "Step,Date Time,League,Match,Entry Minute,Odds,Result,Note\n";
-      state.history.forEach(h => {
-        csv += `"${h.step}","${h.dateTime}","${h.league}","${h.match}","${h.entryMinute}","${h.odds}","${h.result}","${h.note || ''}"\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Rollover_History_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-    }
-
-    window.onload = init;
+    // Initial load for demo display
+    populateLeagues();
+    renderTable();
   </script>
 </body>
 </html>
-EOF
