@@ -167,7 +167,7 @@ cat << 'EOF' > index.html
           </div>
           <div class="form-group" style="margin-bottom: 12px;">
             <label>GitHub Raw JSON Data URL</label>
-            <input type="text" id="cfgGithubUrl" placeholder="https://raw.githubusercontent.com/username/repo/main/matches.json" onchange="updateSettings()">
+            <input type="text" id="cfgGithubUrl" placeholder="https://raw.githubusercontent.com/apeelewuetu/goal-tracker-app/main/matches.json" onchange="updateSettings()">
           </div>
           <div style="display: flex; gap: 8px; margin-bottom: 20px;">
             <button class="btn btn-primary" style="flex: 1;" onclick="saveUrlAndScan()">💾 Save Endpoint</button>
@@ -231,6 +231,8 @@ cat << 'EOF' > index.html
   </div>
 
   <script>
+    const DEFAULT_GITHUB_URL = "https://raw.githubusercontent.com/apeelewuetu/goal-tracker-app/main/matches.json";
+
     let state = {
       settings: { 
         minMin: 10, 
@@ -238,7 +240,7 @@ cat << 'EOF' > index.html
         minOdds: 1.10, 
         maxOdds: 1.25, 
         minConf: 65, 
-        githubUrl: "https://raw.githubusercontent.com/apeelewuetu/goal-tracker-app/main/matches.json" 
+        githubUrl: DEFAULT_GITHUB_URL 
       },
       isOffline: false,
       bypassFilters: true,
@@ -256,7 +258,17 @@ cat << 'EOF' > index.html
     function init() {
       const saved = localStorage.getItem('rollover_assistant_github_state');
       if (saved) {
-        try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { console.error(e); }
+        try { 
+          const parsed = JSON.parse(saved);
+          state = Object.assign(state, parsed);
+          
+          // Force repair invalid or incomplete URLs saved in LocalStorage
+          if (!state.settings.githubUrl || state.settings.githubUrl.endsWith('goal-tracker') || !state.settings.githubUrl.endsWith('.json')) {
+            state.settings.githubUrl = DEFAULT_GITHUB_URL;
+          }
+        } catch(e) { 
+          console.error(e); 
+        }
       }
       syncUI();
       renderAll();
@@ -281,7 +293,7 @@ cat << 'EOF' > index.html
       document.getElementById('cfgMinOdds').value = state.settings.minOdds;
       document.getElementById('cfgMaxOdds').value = state.settings.maxOdds;
       document.getElementById('cfgMinConf').value = state.settings.minConf;
-      document.getElementById('cfgGithubUrl').value = state.settings.githubUrl || "";
+      document.getElementById('cfgGithubUrl').value = state.settings.githubUrl || DEFAULT_GITHUB_URL;
       updateOfflineUI();
     }
 
@@ -291,7 +303,9 @@ cat << 'EOF' > index.html
       state.settings.minOdds = parseFloat(document.getElementById('cfgMinOdds').value) || 1.10;
       state.settings.maxOdds = parseFloat(document.getElementById('cfgMaxOdds').value) || 1.25;
       state.settings.minConf = parseInt(document.getElementById('cfgMinConf').value) || 65;
-      state.settings.githubUrl = document.getElementById('cfgGithubUrl').value.trim();
+      
+      let inputUrl = document.getElementById('cfgGithubUrl').value.trim();
+      state.settings.githubUrl = inputUrl || DEFAULT_GITHUB_URL;
       saveState();
     }
 
