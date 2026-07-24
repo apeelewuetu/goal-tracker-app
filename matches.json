@@ -5,11 +5,11 @@
     "country": "World",
     "home": "Vejle Boldklub",
     "away": "AB",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -18,11 +18,11 @@
     "country": "World",
     "home": "FA Siauliai",
     "away": "Hegelmann",
-    "elapsed": 9,
+    "elapsed": 10,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.12,
+    "odds": 1.13,
     "conf": 80
   },
   {
@@ -31,11 +31,11 @@
     "country": "World",
     "home": "Rosenborg",
     "away": "Man United",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -44,11 +44,11 @@
     "country": "World",
     "home": "Radomiak Radom",
     "away": "Wieczysta Krak\u00f3w",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -57,11 +57,11 @@
     "country": "World",
     "home": "Polonia Bytom",
     "away": "Warta Pozna\u0144",
-    "elapsed": 7,
+    "elapsed": 8,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.11,
+    "odds": 1.12,
     "conf": 80
   },
   {
@@ -70,11 +70,11 @@
     "country": "World",
     "home": "Znicz Pruszk\u00f3w",
     "away": "Resovia",
-    "elapsed": 9,
+    "elapsed": 10,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.12,
+    "odds": 1.13,
     "conf": 80
   },
   {
@@ -83,11 +83,11 @@
     "country": "World",
     "home": "GFK Tikves Kavadarci",
     "away": "Arsimi",
-    "elapsed": 52,
+    "elapsed": 53,
     "homeScore": 4,
     "awayScore": 1,
     "statusShort": "2H",
-    "odds": 1.34,
+    "odds": 1.35,
     "conf": 80
   },
   {
@@ -96,7 +96,7 @@
     "country": "World",
     "home": "TSV Schwaben Augsburg",
     "away": "TSV Buchbach",
-    "elapsed": 8,
+    "elapsed": 9,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
@@ -109,7 +109,7 @@
     "country": "World",
     "home": "VfB Eichst\u00e4tt",
     "away": "FV Illertissen",
-    "elapsed": 8,
+    "elapsed": 9,
     "homeScore": 0,
     "awayScore": 1,
     "statusShort": "1H",
@@ -122,11 +122,11 @@
     "country": "World",
     "home": "Beroe",
     "away": "Hebar",
-    "elapsed": 22,
+    "elapsed": 23,
     "homeScore": 1,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.19,
+    "odds": 1.2,
     "conf": 80
   },
   {
@@ -135,7 +135,7 @@
     "country": "World",
     "home": "UTA Arad",
     "away": "Otelul Galati",
-    "elapsed": 35,
+    "elapsed": 36,
     "homeScore": 0,
     "awayScore": 1,
     "statusShort": "1H",
@@ -148,11 +148,11 @@
     "country": "World",
     "home": "FF Jaro",
     "away": "SJK",
-    "elapsed": 9,
+    "elapsed": 10,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.12,
+    "odds": 1.13,
     "conf": 80
   },
   {
@@ -161,11 +161,11 @@
     "country": "World",
     "home": "FC Jazz",
     "away": "TPV",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -174,11 +174,11 @@
     "country": "World",
     "home": "Tampere United",
     "away": "FC Inter Turku II",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -187,11 +187,11 @@
     "country": "World",
     "home": "SK Prostejov",
     "away": "Trinec",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -200,11 +200,11 @@
     "country": "World",
     "home": "Vysocina Jihlava",
     "away": "Zizkov",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -213,11 +213,11 @@
     "country": "World",
     "home": "Usti nad Labem",
     "away": "Kladno",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -226,11 +226,11 @@
     "country": "World",
     "home": "Dukla Praha",
     "away": "Ceska Lipa",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   },
   {
@@ -239,11 +239,11 @@
     "country": "World",
     "home": "Hanacka Slavia Kromeriz",
     "away": "FC Silon Taborsko",
-    "elapsed": 10,
+    "elapsed": 11,
     "homeScore": 0,
     "awayScore": 0,
     "statusShort": "1H",
-    "odds": 1.13,
+    "odds": 1.14,
     "conf": 80
   }
 ]
