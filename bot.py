@@ -42,8 +42,15 @@ LIVE_POLL_INTERVAL = 300
 # Helper Functions
 # -------------------------------------------------------------------
 def log(msg):
+    """Logs messages safely across all OS terminal encodings (e.g., Windows cp1252)."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {msg}")
+    formatted_msg = f"[{timestamp}] {msg}"
+    
+    try:
+        print(formatted_msg)
+    except UnicodeEncodeError:
+        safe_msg = formatted_msg.encode(sys.stdout.encoding or 'utf-8', errors='ignore').decode('utf-8', errors='ignore')
+        print(safe_msg)
 
 def send_telegram_alert(message):
     """Sends a notification message to your Telegram chat."""
