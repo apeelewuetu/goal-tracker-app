@@ -14,3 +14,17 @@ Traceback (most recent call last):
     return codecs.charmap_encode(input,self.errors,encoding_table)[0]
            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f680' in position 0: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Desktop\repository folder\goal-tracker-app\bot.py", line 237, in <module>
+    run_smart_scanner()
+    ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Administrator\Desktop\repository folder\goal-tracker-app\bot.py", line 184, in run_smart_scanner
+    log("\U0001f680 Starting Match-Aware API-Sports Goal Scanner Bot...")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\repository folder\goal-tracker-app\bot.py", line 30, in log
+    print(f"[{timestamp}] {msg}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f680' in position 22: character maps to <undefined>

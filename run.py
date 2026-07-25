@@ -1,10 +1,10 @@
 import subprocess
 import sys
 
-# DETACHED_PROCESS flag ensures process keeps running even if VS Code / terminal closes
+# DETACHED_PROCESS flag ensures process keeps running even if VS Code closes
 DETACHED_PROCESS = 0x00000008
 
-bot_out = open("bot.log", "a")
+bot_out = open("bot.log", "a", encoding="utf-8")
 subprocess.Popen(
     [sys.executable, "bot.py"], 
     stdout=bot_out, 

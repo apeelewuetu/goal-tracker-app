@@ -3,12 +3,19 @@ import time
 import json
 import requests
 import subprocess
+import sys
+import io
+
+# Force stdout/stderr to output in UTF-8 (prevents emoji crashes on Windows)
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 from datetime import datetime, timedelta
 
 # -------------------------------------------------------------------
 # Configuration & Credentials
 # -------------------------------------------------------------------
-API_KEY = "36df2896f3ae0a6d33cd502d3a8bfaae"  # Replace with your direct API-Sports Key
+API_KEY = "36df2896f3ae0a6d33cd502d3a8hfaae"  # Your API-Sports Key
 BASE_URL = "https://v3.football.api-sports.io"
 
 HEADERS = {
@@ -115,7 +122,7 @@ def fetch_and_update_matches():
             push_to_github()
             return False
 
-        log(f" Found {len(matches_list)} live matches!")
+        log(f"Found {len(matches_list)} live matches!")
         formatted_matches = []
 
         for idx, item in enumerate(matches_list):
@@ -167,7 +174,7 @@ def fetch_and_update_matches():
         with open("matches.json", "w", encoding="utf-8") as f:
             json.dump(formatted_matches, f, indent=2)
 
-        log(f" Successfully updated 'matches.json' with {len(formatted_matches)} live games.")
+        log(f"Successfully updated 'matches.json' with {len(formatted_matches)} live games.")
         
         # Auto-push updates to GitHub repo
         push_to_github()
@@ -222,7 +229,7 @@ def run_smart_scanner():
                 time.sleep(seconds_until_start)
 
         # Active Match Polling Loop
-        log(" entering Active Match Monitoring Phase...")
+        log("Entering Active Match Monitoring Phase...")
         while True:
             has_live = fetch_and_update_matches()
             
