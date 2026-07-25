@@ -391,28 +391,56 @@ cat << 'EOF' > index.html
         let res = await fetch(url);
         if (res.ok) {
           let json = await res.json();
-          let rawList = Array.isArray(json) ? json : (json.response || json.matches || []);
+          let rawList = Array.isArray(json) ? json : (json.response || json.matches || json.data || []);
 
-          fetchedMatches = rawList.map((item, idx) => {
-            const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
-            const homeScore = item.homeScore ?? item.goals?.home ?? 0;
-            const awayScore = item.awayScore ?? item.goals?.away ?? 0;
+          // 1. FILTER: Exclude Finished, Cancelled, and Postponed Matches
+          const activeRawMatches = rawList.filter(item => {
+            const statusCode = (
+              item.statusShort || 
+              item.status?.short || 
+              item.fixture?.status?.short || 
+              item.status || 
+              ""
+            ).toString().toUpperCase();
+
+            const finishedStatuses = ["FT", "AET", "PEN", "POSTP", "CANC", "SUSP", "INT", "FINISHED", "ENDED"];
+            return !finishedStatuses.includes(statusCode);
+          });
+
+          // 2. DEDUPLICATE & MAP: Build Clean Unique Match List
+          const matchMap = new Map();
+
+          activeRawMatches.forEach((item, idx) => {
+            const elapsed = parseInt(item.elapsed || item.fixture?.status?.elapsed || item.status?.elapsed || 0) || 0;
+
+            // Skip matches over 90 minutes
+            if (elapsed > 90) return;
+
+            const homeName = item.home || item.teams?.home?.name || "Home Team";
+            const awayName = item.away || item.teams?.away?.name || "Away Team";
+            const matchId = item.id || item.fixture?.id || `${homeName}-${awayName}`.toLowerCase();
+
+            const homeScore = parseInt(item.homeScore ?? item.goals?.home ?? 0) || 0;
+            const awayScore = parseInt(item.awayScore ?? item.goals?.away ?? 0) || 0;
             const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
 
-            return {
-              id: item.id || idx + 1,
+            matchMap.set(matchId, {
+              id: matchId,
               league: item.league || item.league?.name || "Global League",
               country: item.country || item.league?.country || "World",
-              home: item.home || item.teams?.home?.name || "Home Team",
-              away: item.away || item.teams?.away?.name || "Away Team",
+              home: homeName,
+              away: awayName,
               elapsed: elapsed,
               homeScore: homeScore,
               awayScore: awayScore,
               statusShort: item.statusShort || item.fixture?.status?.short || "1H",
               odds: estimatedOdds,
               conf: item.conf || 75
-            };
+            });
           });
+
+          // 3. OVERWRITE LOCAL STATE: Cleanly purge old/redundant matches
+          fetchedMatches = Array.from(matchMap.values());
         } else {
           apiErrorMsg = `Failed to load GitHub file (HTTP ${res.status}). Verify the file URL in settings.`;
           fetchedMatches = [];
@@ -498,7 +526,7 @@ cat << 'EOF' > index.html
                 <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
               </div>
               <div class="action-row">
-                <button class="btn btn-purple" onclick="placeBet(${match.id})">✔ Lock Bet (Step ${state.currentStep})</button>
+                <button class="btn btn-purple" onclick="placeBet('${match.id}')">✔ Lock Bet (Step ${state.currentStep})</button>
                 <a class="btn btn-msport" href="${msportUrl}" target="_blank">🟢 MSport</a>
                 <a class="btn btn-bet9ja" href="${bet9jaUrl}" target="_blank">🟡 Bet9ja</a>
               </div>
@@ -547,7 +575,7 @@ cat << 'EOF' > index.html
             <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
           </div>
           <div class="action-row">
-            <button class="btn btn-success" onclick="placeBet(${match.id})">✔ Lock Bet (Step ${state.currentStep})</button>
+            <button class="btn btn-success" onclick="placeBet('${match.id}')">✔ Lock Bet (Step ${state.currentStep})</button>
             <a class="btn btn-msport" href="${msportUrl}" target="_blank">🟢 MSport</a>
             <a class="btn btn-bet9ja" href="${bet9jaUrl}" target="_blank">🟡 Bet9ja</a>
           </div>
@@ -555,7 +583,7 @@ cat << 'EOF' > index.html
     }
 
     function placeBet(matchId) {
-      const match = fetchedMatches.find(m => m.id === matchId);
+      const match = fetchedMatches.find(m => String(m.id) === String(matchId));
       if (!match) return;
 
       state.activeBet = {
