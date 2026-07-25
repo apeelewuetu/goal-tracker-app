@@ -50,7 +50,6 @@ cat << 'EOF' > index.html
 
     .btn-msport { background-color: #00c853; color: #ffffff; font-weight: 700; }
     .btn-bet9ja { background-color: #ff9800; color: #0b0f19; font-weight: 700; }
-    .btn-copy { background-color: #64748b; color: #ffffff; font-weight: 700; }
 
     /* KPI Grid */
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -73,24 +72,12 @@ cat << 'EOF' > index.html
     .rec-card.bypass { border-color: var(--accent-purple); }
     .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .league-badge { font-size: 12px; font-weight: 600; color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; }
-    .match-teams { font-size: 18px; font-weight: 800; margin-bottom: 12px; user-select: all; cursor: pointer; }
+    .match-teams { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
     .match-stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; }
     .stat-badge { background-color: var(--bg-card); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
 
     .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .action-row .btn { flex: 1; min-width: 110px; justify-content: center; }
-    .btn-delete { background-color: var(--accent-red); color: white; padding: 4px 10px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; font-weight: 700; }
-    .btn-delete:hover { opacity: 0.8; }
-
-    /* Toast Notification */
-    #toast {
-      visibility: hidden; min-width: 200px; background-color: #10b981; color: #0b0f19;
-      text-align: center; border-radius: 6px; padding: 10px 16px; position: fixed;
-      z-index: 9999; right: 20px; bottom: 20px; font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    #toast.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 1.7s; }
-    @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 20px; opacity: 1; } }
-    @keyframes fadeout { from { bottom: 20px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+    .action-row .btn { flex: 1; min-width: 120px; justify-content: center; }
 
     /* Form Controls */
     .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
@@ -111,8 +98,6 @@ cat << 'EOF' > index.html
 </head>
 <body>
 
-  <div id="toast">Copied to clipboard!</div>
-
   <div class="container">
     <!-- Header -->
     <div class="app-header">
@@ -121,13 +106,10 @@ cat << 'EOF' > index.html
         <p>Target: 12 Sequential Live Rollovers (GitHub Data Feed)</p>
       </div>
       <div class="header-actions">
-        <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 Only)</button>
+        <button id="bypassBtn" class="btn btn-purple" onclick="toggleFilterBypass()">🔓 Raw Matches (0-0 1st Half)</button>
         <button id="toggleOnlineBtn" class="btn btn-warning" onclick="toggleOfflineMode()">🔌 Pause Sync</button>
         <button class="btn btn-primary" onclick="manualScan()">🔄 Sync GitHub API</button>
-        <button class="btn btn-secondary" onclick="clearDismissedCache()" title="Restore all hidden/removed matches">🔄 Reset Hidden Matches</button>
         <button class="btn btn-secondary" onclick="exportHistory('CSV')">📥 Export CSV</button>
-        <button class="btn btn-secondary" onclick="exportHistory('XLSX')">📊 Export Excel</button>
-        <button class="btn btn-secondary" onclick="exportHistory('PDF')">📄 Export PDF</button>
       </div>
     </div>
 
@@ -146,7 +128,7 @@ cat << 'EOF' > index.html
         <div class="kpi-value green" id="kpiStreak">0 🔥</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-title">Active 0-0 Games</div>
+        <div class="kpi-title">Raw Live Matches</div>
         <div class="kpi-value" id="kpiRawMatches">0</div>
       </div>
     </div>
@@ -163,7 +145,10 @@ cat << 'EOF' > index.html
 
           <div id="filterBypassNotice" style="display: none; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--accent-purple); color: #ddd; padding: 12px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <span>⚠️ <strong>Auto-Purge Active:</strong> Only games currently at <strong style="color:var(--accent-green);">0-0 (1st Half)</strong> are displayed. Matches automatically vanish once a goal is scored or manually removed.</span>
+              <span>⚠️ <strong>Filter Bypass Mode:</strong> Showing raw live matches currently at <strong style="color:var(--accent-green);">0-0 (1st Half, 1'-45')</strong>.</span>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleStrictBypass()">
+                <span id="strictBypassLabel">Show All GitHub Live Matches</span>
+              </button>
             </div>
           </div>
 
@@ -180,7 +165,7 @@ cat << 'EOF' > index.html
         </div>
       </div>
 
-      <!-- Right Column: Controls -->
+      <!-- Right Column: GitHub Config & Controls -->
       <div>
         <div class="panel">
           <div class="panel-header">
@@ -265,6 +250,7 @@ cat << 'EOF' > index.html
       },
       isOffline: false,
       bypassFilters: true,
+      showAbsoluteAll: false,
       currentStep: 1,
       activeBet: null,
       history: [],
@@ -272,24 +258,8 @@ cat << 'EOF' > index.html
     };
 
     let fetchedMatches = [];
-    let dismissedIds = JSON.parse(localStorage.getItem('dismissed_matches') || '[]');
     let isFetching = false;
     let apiErrorMsg = "";
-
-    function showToast(msg) {
-      const toast = document.getElementById("toast");
-      toast.innerText = msg;
-      toast.className = "show";
-      setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2000);
-    }
-
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        showToast(`Copied: "${text}"`);
-      }).catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-    }
 
     function init() {
       const saved = localStorage.getItem('rollover_assistant_github_state');
@@ -363,17 +333,9 @@ cat << 'EOF' > index.html
       saveState();
     }
 
-    function deleteMatch(id) {
-      dismissedIds.push(id);
-      localStorage.setItem('dismissed_matches', JSON.stringify(dismissedIds));
-      renderAll();
-    }
-
-    function clearDismissedCache() {
-      dismissedIds = [];
-      localStorage.removeItem('dismissed_matches');
-      showToast("Restored all hidden matches!");
-      renderAll();
+    function toggleStrictBypass() {
+      state.showAbsoluteAll = !state.showAbsoluteAll;
+      saveState();
     }
 
     function updateOfflineUI() {
@@ -381,14 +343,18 @@ cat << 'EOF' > index.html
       const bypassBtn = document.getElementById('bypassBtn');
       const badge = document.getElementById('scanStatusBadge');
       const notice = document.getElementById('filterBypassNotice');
+      const strictLabel = document.getElementById('strictBypassLabel');
 
       if (state.bypassFilters) {
         bypassBtn.className = "btn btn-success";
         bypassBtn.innerText = "🔒 Apply Strategy Filters";
         notice.style.display = "block";
+        if (strictLabel) {
+          strictLabel.innerText = state.showAbsoluteAll ? "Switch to 0-0 (1st Half Only)" : "Show All GitHub Live Matches";
+        }
       } else {
         bypassBtn.className = "btn btn-purple";
-        bypassBtn.innerText = "🔓 Raw Matches (0-0 Only)";
+        bypassBtn.innerText = "🔓 Raw Matches (0-0 1st Half)";
         notice.style.display = "none";
       }
 
@@ -400,7 +366,7 @@ cat << 'EOF' > index.html
       } else {
         btn.className = "btn btn-warning";
         btn.innerText = "🔌 Pause Sync";
-        badge.innerText = `● GitHub Active (${fetchedMatches.filter(m => !dismissedIds.includes(m.id)).length} 0-0 Games)`;
+        badge.innerText = `● GitHub Active (${fetchedMatches.length} Live Games)`;
         badge.style.color = "var(--accent-green)";
       }
     }
@@ -427,34 +393,26 @@ cat << 'EOF' > index.html
           let json = await res.json();
           let rawList = Array.isArray(json) ? json : (json.response || json.matches || []);
 
-          // Generate stable unique ID based on match team names if `id` or fallback indexing changes across syncs
-          fetchedMatches = rawList
-            .map((item, idx) => {
-              const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
-              const homeScore = item.homeScore ?? item.goals?.home ?? 0;
-              const awayScore = item.awayScore ?? item.goals?.away ?? 0;
-              const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
-              
-              const homeTeam = item.home || item.teams?.home?.name || "Home Team";
-              const awayTeam = item.away || item.teams?.away?.name || "Away Team";
-              const stableId = item.id || `${homeTeam}_vs_${awayTeam}`.toLowerCase().replace(/\s+/g, '_');
+          fetchedMatches = rawList.map((item, idx) => {
+            const elapsed = item.elapsed || item.fixture?.status?.elapsed || 0;
+            const homeScore = item.homeScore ?? item.goals?.home ?? 0;
+            const awayScore = item.awayScore ?? item.goals?.away ?? 0;
+            const estimatedOdds = parseFloat(item.odds || (1.08 + (elapsed * 0.005)).toFixed(2));
 
-              return {
-                id: stableId,
-                league: item.league || item.league?.name || "Global League",
-                country: item.country || item.league?.country || "World",
-                home: homeTeam,
-                away: awayTeam,
-                elapsed: elapsed,
-                homeScore: homeScore,
-                awayScore: awayScore,
-                statusShort: item.statusShort || item.fixture?.status?.short || "1H",
-                odds: estimatedOdds,
-                conf: item.conf || 75
-              };
-            })
-            .filter(m => m.homeScore === 0 && m.awayScore === 0);
-
+            return {
+              id: item.id || idx + 1,
+              league: item.league || item.league?.name || "Global League",
+              country: item.country || item.league?.country || "World",
+              home: item.home || item.teams?.home?.name || "Home Team",
+              away: item.away || item.teams?.away?.name || "Away Team",
+              elapsed: elapsed,
+              homeScore: homeScore,
+              awayScore: awayScore,
+              statusShort: item.statusShort || item.fixture?.status?.short || "1H",
+              odds: estimatedOdds,
+              conf: item.conf || 75
+            };
+          });
         } else {
           apiErrorMsg = `Failed to load GitHub file (HTTP ${res.status}). Verify the file URL in settings.`;
           fetchedMatches = [];
@@ -471,11 +429,11 @@ cat << 'EOF' > index.html
     }
 
     function getBestCandidate() {
-      const activeList = fetchedMatches.filter(m => !dismissedIds.includes(m.id));
-      if (state.activeBet || activeList.length === 0) return null;
+      if (state.activeBet || fetchedMatches.length === 0) return null;
 
-      return activeList.find(m => {
-        return m.elapsed >= state.settings.minMin && m.elapsed <= state.settings.maxMin &&
+      return fetchedMatches.find(m => {
+        return m.homeScore === 0 && m.awayScore === 0 &&
+               m.elapsed >= state.settings.minMin && m.elapsed <= state.settings.maxMin &&
                m.odds >= state.settings.minOdds && m.odds <= state.settings.maxOdds &&
                m.conf >= state.settings.minConf;
       });
@@ -505,42 +463,42 @@ cat << 'EOF' > index.html
         return;
       }
 
-      const activeList = fetchedMatches.filter(m => !dismissedIds.includes(m.id));
-
       if (state.bypassFilters) {
-        if (activeList.length === 0) {
+        let displayList = fetchedMatches;
+
+        if (!state.showAbsoluteAll) {
+          displayList = fetchedMatches.filter(m => m.homeScore === 0 && m.awayScore === 0 && (m.elapsed <= 45 || m.statusShort === '1H'));
+        }
+
+        if (displayList.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-              <p>🌐 Connected to GitHub.</p>
-              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 active matches at 0-0</strong>. All scored or removed matches have been cleared.</p>
-              <button class="btn btn-secondary" style="margin-top: 12px;" onclick="clearDismissedCache()">🔄 Reset Hidden Matches Cache</button>
+              <p>🌐 Connected to GitHub (${fetchedMatches.length} total games active globally).</p>
+              <p style="font-size: 13px; color: var(--accent-amber); margin-top: 6px;">Currently <strong>0 matches at 0-0 in the 1st Half</strong>.</p>
+              <button class="btn btn-secondary" style="margin-top: 12px;" onclick="toggleStrictBypass()">Show All ${fetchedMatches.length} Live Games Worldwide</button>
             </div>`;
           return;
         }
 
         let html = `<div style="max-height: 480px; overflow-y: auto; padding-right: 4px;">`;
-        activeList.forEach(match => {
-          const matchFullName = `${match.home} vs ${match.away}`;
-          const msportUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:msport.com/ng "${match.home}" "${match.away}"`);
-          const bet9jaUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:bet9ja.com "${match.home}" "${match.away}"`);
-
-          let timeStr = typeof match.elapsed === 'object' ? (match.elapsed.short || match.elapsed.long || '1H') : (match.elapsed + '’');
+        displayList.forEach(match => {
+          const queryStr = encodeURIComponent(`${match.home} vs ${match.away} live`);
+          const msportUrl = `https://www.google.com/search?q=${queryStr}+MSport`;
+          const bet9jaUrl = `https://www.google.com/search?q=${queryStr}+Bet9ja`;
 
           html += `
             <div class="rec-card bypass">
-              <button class="btn-delete" onclick="deleteMatch('${match.id}')" style="position: absolute; top: 16px; right: 16px;">✕ Remove</button>
               <div class="rec-header">
                 <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${timeStr} (${match.statusShort})</span>
+                <span style="color: var(--accent-purple); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}' (${match.statusShort})</span>
               </div>
-              <div class="match-teams" onclick="copyToClipboard('${matchFullName}')" title="Click to copy full match name">${match.home} 0 - 0 ${match.away}</div>
+              <div class="match-teams">${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}</div>
               <div class="match-stats-row">
                 <span class="stat-badge">Est. Odds: <strong>${match.odds.toFixed(2)}</strong></span>
                 <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
               </div>
               <div class="action-row">
-                <button class="btn btn-purple" onclick="placeBet('${match.id}')">✔ Lock Bet (Step ${state.currentStep})</button>
-                <button class="btn btn-copy" onclick="copyToClipboard('${matchFullName}')">📋 Copy</button>
+                <button class="btn btn-purple" onclick="placeBet(${match.id})">✔ Lock Bet (Step ${state.currentStep})</button>
                 <a class="btn btn-msport" href="${msportUrl}" target="_blank">🟢 MSport</a>
                 <a class="btn btn-bet9ja" href="${bet9jaUrl}" target="_blank">🟡 Bet9ja</a>
               </div>
@@ -555,7 +513,7 @@ cat << 'EOF' > index.html
         container.innerHTML = `
           <div style="text-align: center; padding: 20px; color: var(--accent-amber);">
             <h3>⏳ Step ${state.currentStep} Active</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet below to unlock the next candidate.</p>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Monitoring active bet. Complete or resolve the current bet to unlock the next pick.</p>
           </div>`;
         return;
       }
@@ -564,35 +522,32 @@ cat << 'EOF' > index.html
       if (!match) {
         container.innerHTML = `
           <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <p>🔍 Connected to GitHub (${activeList.length} 0-0 matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
+            <p>🔍 GitHub Connected (${fetchedMatches.length} raw matches loaded), but none currently match your strict Strategy Filters (${state.settings.minMin}'–${state.settings.maxMin}').</p>
             <p style="font-size: 12px; margin-top: 8px; color: var(--accent-purple);">
-              👉 Click <strong>"🔓 Raw Matches (0-0 Only)"</strong> above to inspect all live 0-0 games directly.
+              👉 Click <strong>"🔓 Raw Matches (0-0 1st Half)"</strong> above to inspect all live 0-0 games directly.
             </p>
           </div>`;
         return;
       }
 
-      const matchFullName = `${match.home} vs ${match.away}`;
-      const msportUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:msport.com/ng "${match.home}" "${match.away}"`);
-      const bet9jaUrl = `https://www.google.com/search?q=` + encodeURIComponent(`site:bet9ja.com "${match.home}" "${match.away}"`);
-      let timeStr = typeof match.elapsed === 'object' ? (match.elapsed.short || match.elapsed.long || '1H') : (match.elapsed + '’');
+      const queryStr = encodeURIComponent(`${match.home} vs ${match.away} live`);
+      const msportUrl = `https://www.google.com/search?q=${queryStr}+MSport`;
+      const bet9jaUrl = `https://www.google.com/search?q=${queryStr}+Bet9ja`;
 
       container.innerHTML = `
         <div class="rec-card">
-          <button class="btn-delete" onclick="deleteMatch('${match.id}')" style="position: absolute; top: 16px; right: 16px;">✕ Remove</button>
           <div class="rec-header">
             <span class="league-badge">🏆 ${match.league} (${match.country})</span>
-            <span style="color: var(--accent-green); font-weight: 700; font-size: 13px;">LIVE: ${timeStr}</span>
+            <span style="color: var(--accent-green); font-weight: 700; font-size: 13px;">LIVE: ${match.elapsed}'</span>
           </div>
-          <div class="match-teams" onclick="copyToClipboard('${matchFullName}')" title="Click to copy full match name">${match.home} vs ${match.away}</div>
+          <div class="match-teams">${match.home} vs ${match.away}</div>
           <div class="match-stats-row">
             <span class="stat-badge">Score: <strong>0 - 0</strong></span>
             <span class="stat-badge">Est. Live Odds: <strong>${match.odds.toFixed(2)}</strong></span>
             <span class="stat-badge">AI Score: <strong>${match.conf}%</strong></span>
           </div>
           <div class="action-row">
-            <button class="btn btn-success" onclick="placeBet('${match.id}')">✔ Lock Bet (Step ${state.currentStep})</button>
-            <button class="btn btn-copy" onclick="copyToClipboard('${matchFullName}')">📋 Copy</button>
+            <button class="btn btn-success" onclick="placeBet(${match.id})">✔ Lock Bet (Step ${state.currentStep})</button>
             <a class="btn btn-msport" href="${msportUrl}" target="_blank">🟢 MSport</a>
             <a class="btn btn-bet9ja" href="${bet9jaUrl}" target="_blank">🟡 Bet9ja</a>
           </div>
@@ -600,7 +555,7 @@ cat << 'EOF' > index.html
     }
 
     function placeBet(matchId) {
-      const match = fetchedMatches.find(m => m.id == matchId);
+      const match = fetchedMatches.find(m => m.id === matchId);
       if (!match) return;
 
       state.activeBet = {
@@ -627,8 +582,8 @@ cat << 'EOF' > index.html
       const bet = state.activeBet;
       container.innerHTML = `
         <div style="background: var(--bg-main); border: 1px solid var(--accent-amber); padding: 16px; border-radius: 8px;">
-          <div style="font-size: 12px; font-weight: 700; color: var(--accent-amber); margin-bottom: 6px;">STEP ${bet.step} LOCKED & MONITORED</div>
-          <div style="font-size: 16px; font-weight: 800; margin-bottom: 8px; cursor: pointer;" onclick="copyToClipboard('${bet.match}')">${bet.match}</div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--accent-amber); margin-bottom: 6px;">STEP ${bet.step} IN PROGRESS</div>
+          <div style="font-size: 16px; font-weight: 800; margin-bottom: 8px;">${bet.match}</div>
           <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
             ${bet.league} | Entry Min: ${bet.entryMinute}' | Odds: ${bet.odds}
           </div>
@@ -705,10 +660,9 @@ cat << 'EOF' > index.html
       document.getElementById('kpiWinRate').innerText = `${total > 0 ? Math.round((wins / total) * 100) : 0}%`;
       document.getElementById('kpiStreak').innerText = `${state.streak} 🔥`;
 
-      const activeCount = fetchedMatches.filter(m => !dismissedIds.includes(m.id)).length;
       const rawKpEl = document.getElementById('kpiRawMatches');
-      rawKpEl.innerText = activeCount;
-      rawKpEl.style.color = activeCount > 0 ? "var(--accent-green)" : "var(--accent-amber)";
+      rawKpEl.innerText = fetchedMatches.length;
+      rawKpEl.style.color = fetchedMatches.length > 0 ? "var(--accent-green)" : "var(--accent-amber)";
     }
 
     function renderAll() {
@@ -728,39 +682,16 @@ cat << 'EOF' > index.html
 
     function exportHistory(type) {
       if (state.history.length === 0) return alert("No history records available.");
-      
-      if (type === 'PDF') {
-        window.print();
-        return;
-      }
-
-      let content = "";
-      let mimeType = "";
-      let extension = "";
-
-      if (type === 'XLSX') {
-        mimeType = 'application/vnd.ms-excel';
-        extension = 'xls';
-        content = "Step\tDate Time\tLeague\tMatch\tEntry Minute\tOdds\tResult\tNote\n";
-        state.history.forEach(h => {
-          content += `${h.step}\t${h.dateTime}\t${h.league}\t${h.match}\t${h.entryMinute}\t${h.odds}\t${h.result}\t${h.note || ''}\n`;
-        });
-      } else {
-        mimeType = 'text/csv';
-        extension = 'csv';
-        content = "Step,Date Time,League,Match,Entry Minute,Odds,Result,Note\n";
-        state.history.forEach(h => {
-          content += `"${h.step}","${h.dateTime}","${h.league}","${h.match}","${h.entryMinute}","${h.odds}","${h.result}","${h.note || ''}"\n`;
-        });
-      }
-
-      const blob = new Blob([content], { type: mimeType });
+      let csv = "Step,Date Time,League,Match,Entry Minute,Odds,Result,Note\n";
+      state.history.forEach(h => {
+        csv += `"${h.step}","${h.dateTime}","${h.league}","${h.match}","${h.entryMinute}","${h.odds}","${h.result}","${h.note || ''}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `rollover_history_${new Date().toISOString().slice(0,10)}.${extension}`;
+      a.download = `Rollover_History_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
-      window.URL.revokeObjectURL(url);
     }
 
     window.onload = init;
