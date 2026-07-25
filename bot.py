@@ -3,25 +3,32 @@ import time
 import json
 import requests
 import subprocess
+from datetime import datetime, timedelta
 
 # -------------------------------------------------------------------
 # Configuration & Credentials
 # -------------------------------------------------------------------
-RAPIDAPI_KEY = "48b9cd5744msh1445ae0d46782f7p1508c9jsn24c99c098d0a"
-RAPIDAPI_HOST = "free-api-live-football-data.p.rapidapi.com"
-ENDPOINT_PATH = "football-current-live"
+API_KEY = "36df2896f3ae0a6d33cd502d3a8bfaae"  # Replace with your direct API-Sports Key
+BASE_URL = "https://v3.football.api-sports.io"
 
-API_URL = f"https://{RAPIDAPI_HOST}/{ENDPOINT_PATH}"
+HEADERS = {
+    "x-apisports-key": API_KEY
+}
 
 # Telegram Credentials
 TELEGRAM_BOT_TOKEN = "8911441513:AAGeoHoTDnIbjFEYaViqbF1fgDShcZV7YSA"
 TELEGRAM_CHAT_ID = "6999628595"
 
-CHECK_INTERVAL = 60
+# Polling interval during active matches (300s = 5 mins = ~12 calls/hr)
+LIVE_POLL_INTERVAL = 300
 
 # -------------------------------------------------------------------
 # Helper Functions
 # -------------------------------------------------------------------
+def log(msg):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {msg}")
+
 def send_telegram_alert(message):
     """Sends a notification message to your Telegram chat."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -36,7 +43,7 @@ def send_telegram_alert(message):
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"⚠️ Telegram Alert Error: {e}")
+        log(f"⚠️ Telegram Alert Error: {e}")
 
 def push_to_github():
     """Pushes matches.json updates directly to GitHub."""
@@ -44,88 +51,102 @@ def push_to_github():
         subprocess.run(["git", "add", "matches.json"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "commit", "-m", "Auto-update live matches"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "push", "origin", "main"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("🚀 Pushed updated 'matches.json' to GitHub repository!")
+        log("🚀 Pushed updated 'matches.json' to GitHub repository!")
     except Exception as e:
-        # Silently log git failure if no changes or no remote configured
+        # Silently pass if no changes or git not configured
         pass
 
-def parse_elapsed_time(status_dict):
-    """Extracts live minute from liveTime dictionary."""
-    if not isinstance(status_dict, dict):
-        return 0
-    live_time = status_dict.get("liveTime", {})
-    if isinstance(live_time, dict):
-        long_time = live_time.get("long", "")
-        if ":" in str(long_time):
-            try:
-                return int(str(long_time).split(":")[0])
-            except ValueError:
-                pass
-        short_time = live_time.get("short", "")
-        clean_short = "".join(filter(str.isdigit, str(short_time)))
-        if clean_short:
-            return int(clean_short)
-    return 0
+def parse_int(val, default=0):
+    """Safely convert numbers, strings, or None to integer."""
+    if val is None:
+        return default
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+# -------------------------------------------------------------------
+# Core API Logic
+# -------------------------------------------------------------------
+def get_today_fixtures():
+    """Fetch today's full match schedule to get kickoff times (1 API Call)."""
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    url = f"{BASE_URL}/fixtures?date={today_str}"
+    
+    log(f"Fetching daily schedule for {today_str}...")
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        remaining = res.headers.get("x-ratelimit-requests-remaining", "N/A")
+        log(f"Daily API Quota Remaining: {remaining}")
+
+        if res.status_code == 200:
+            return res.json().get("response", [])
+        elif res.status_code == 429:
+            log("❌ Daily API quota limit reached.")
+            send_telegram_alert("⚠️ <b>API-Sports Quota Alert:</b> Daily 100-request limit reached!")
+            return None
+        else:
+            log(f"❌ API Error {res.status_code}: {res.text}")
+            return None
+    except Exception as e:
+        log(f"❌ Network error fetching schedule: {e}")
+        return None
 
 def fetch_and_update_matches():
-    """Fetches live matches safely based on API response structure."""
-    headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": RAPIDAPI_HOST
-    }
-
-    print(f"🔄 Fetching live data from {API_URL}...")
-
+    """Fetches live matches from API-Sports, formats them, and updates matches.json."""
+    url = f"{BASE_URL}/fixtures?live=all"
+    
     try:
-        response = requests.get(API_URL, headers=headers, timeout=15)
-        
-        if response.status_code != 200:
-            print(f"❌ API Error: HTTP {response.status_code} - {response.text}")
-            return
+        log("🔄 Fetching live data from API-Sports...")
+        res = requests.get(url, headers=HEADERS, timeout=15)
 
-        data = response.json()
-        
-        # Extract live games from the nested payload
-        raw_matches = []
-        if isinstance(data, dict):
-            raw_matches = (
-                data.get("response", {}).get("live") 
-                or data.get("response", []) 
-                or data.get("live") 
-                or []
-            )
-        elif isinstance(data, list):
-            raw_matches = data
+        if res.status_code != 200:
+            log(f"❌ API Error: HTTP {res.status_code}")
+            return False
 
+        raw_data = res.json()
+        matches_list = raw_data.get("response", [])
+        
+        if not matches_list:
+            log("ℹ️ No live matches currently in progress.")
+            # Save empty array so UI reflects zero live matches
+            with open("matches.json", "w", encoding="utf-8") as f:
+                json.dump([], f, indent=2)
+            push_to_github()
+            return False
+
+        log(f" Found {len(matches_list)} live matches!")
         formatted_matches = []
 
-        for idx, item in enumerate(raw_matches):
+        for idx, item in enumerate(matches_list):
             if not isinstance(item, dict):
                 continue
 
-            fixture_id = item.get("id") or (idx + 1)
-            
-            # League Details
-            league_name = item.get("leagueName") or "Global League"
-            country_name = item.get("country") or "World"
+            fixture = item.get("fixture", {})
+            teams = item.get("teams", {})
+            goals = item.get("goals", {})
+            league = item.get("league", {})
+
+            fixture_id = fixture.get("id") or (idx + 1)
             
             # Teams
-            home_obj = item.get("home", {})
-            away_obj = item.get("away", {})
+            home_team = teams.get("home", {}).get("name", "Home Team")
+            away_team = teams.get("away", {}).get("name", "Away Team")
             
-            home_team = home_obj.get("name") or home_obj.get("longName") or "Home Team"
-            away_team = away_obj.get("name") or away_obj.get("longName") or "Away Team"
+            # Scores
+            home_score = parse_int(goals.get("home"), 0)
+            away_score = parse_int(goals.get("away"), 0)
             
-            home_score = home_obj.get("score", 0)
-            away_score = away_obj.get("score", 0)
+            # Timing & Status
+            status_obj = fixture.get("status", {})
+            elapsed = parse_int(status_obj.get("elapsed"), 0)
+            status_short = status_obj.get("short", "1H")
             
-            # Match Status & Timing
-            status_obj = item.get("status", {})
-            elapsed = parse_elapsed_time(status_obj)
+            # League & Country
+            league_name = league.get("name", "Global League")
+            country_name = league.get("country", "World")
             
-            status_short = "2H" if elapsed > 45 else "1H"
-            
-            # Calculated Live Odds for Over 0.5 Goals
+            # Dynamic Live Odds Calculation for Over 0.5 Goals
             odds = float(round(1.08 + (elapsed * 0.005), 2))
             
             formatted_matches.append({
@@ -135,32 +156,82 @@ def fetch_and_update_matches():
                 "home": home_team,
                 "away": away_team,
                 "elapsed": elapsed,
-                "homeScore": int(home_score) if home_score is not None else 0,
-                "awayScore": int(away_score) if away_score is not None else 0,
+                "homeScore": home_score,
+                "awayScore": away_score,
                 "statusShort": status_short,
                 "odds": odds,
                 "conf": 80
             })
 
-        with open("matches.json", "w") as f:
+        # Write formatted match array to JSON
+        with open("matches.json", "w", encoding="utf-8") as f:
             json.dump(formatted_matches, f, indent=2)
 
-        print(f"✅ Successfully updated 'matches.json' with {len(formatted_matches)} live games.")
+        log(f" Successfully updated 'matches.json' with {len(formatted_matches)} live games.")
         
         # Auto-push updates to GitHub repo
-        if len(formatted_matches) > 0:
-            push_to_github()
+        push_to_github()
+        return True
 
     except Exception as e:
-        print(f"❌ Error during execution: {e}")
+        log(f"❌ Error during execution: {e}")
+        return False
 
 # -------------------------------------------------------------------
-# Main Loop
+# Smart Execution Loop
 # -------------------------------------------------------------------
-if __name__ == "__main__":
-    print("🚀 Starting Live Football Goal Scanner Bot...")
-    send_telegram_alert("🚀 <b>Goal Scanner Bot Active</b>\nMonitoring live matches...")
-    
+def run_smart_scanner():
+    log("🚀 Starting Match-Aware API-Sports Goal Scanner Bot...")
+    send_telegram_alert("🚀 <b>Goal Scanner Bot Active</b>\nMonitoring live matches with API-Sports...")
+
     while True:
-        fetch_and_update_matches()
-        time.sleep(CHECK_INTERVAL)
+        fixtures = get_today_fixtures()
+        
+        if fixtures is None:
+            log("Failed to retrieve schedule or quota limit hit. Waiting 1 hour...")
+            time.sleep(3600)
+            continue
+
+        now = datetime.now()
+        upcoming_kickoffs = []
+
+        for f in fixtures:
+            status = f.get("fixture", {}).get("status", {}).get("short", "")
+            # NS = Not Started, 1H/2H/HT = Active Game
+            if status in ["NS", "1H", "2H", "HT", "ET", "BT", "P"]:
+                ts = f.get("fixture", {}).get("timestamp")
+                if ts:
+                    upcoming_kickoffs.append(datetime.fromtimestamp(ts))
+
+        if not upcoming_kickoffs:
+            log("All scheduled matches for today are complete. Sleeping until midnight...")
+            tomorrow = datetime.now() + timedelta(days=1)
+            midnight = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 5, 0)
+            sleep_time = (midnight - datetime.now()).total_seconds()
+            time.sleep(max(sleep_time, 3600))
+            continue
+
+        earliest_kickoff = min(upcoming_kickoffs)
+        
+        # If games haven't started yet, sleep until 5 minutes before the first kickoff
+        if earliest_kickoff > now:
+            seconds_until_start = (earliest_kickoff - now).total_seconds() - 300
+            if seconds_until_start > 0:
+                mins = int(seconds_until_start // 60)
+                log(f"Next match starts at {earliest_kickoff.strftime('%H:%M')}. Sleeping for {mins} minutes...")
+                time.sleep(seconds_until_start)
+
+        # Active Match Polling Loop
+        log(" entering Active Match Monitoring Phase...")
+        while True:
+            has_live = fetch_and_update_matches()
+            
+            # Exit loop when no live matches remain
+            if not has_live:
+                log("No active live matches remaining. Re-checking daily schedule...")
+                break
+                
+            time.sleep(LIVE_POLL_INTERVAL)
+
+if __name__ == "__main__":
+    run_smart_scanner()
