@@ -69,15 +69,20 @@ def send_telegram_alert(message):
         log(f"⚠️ Telegram Alert Error: {e}")
 
 def push_to_github():
-    """Pushes matches.json updates directly to GitHub."""
+    """Pushes matches.json updates directly to GitHub if changes exist."""
     try:
+        # Check if matches.json has changes before committing
+        status_check = subprocess.run(["git", "status", "--porcelain", "matches.json"], capture_output=True, text=True)
+        if not status_check.stdout.strip():
+            log("ℹ️ No changes in 'matches.json' to push.")
+            return
+
         subprocess.run(["git", "add", "matches.json"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "commit", "-m", "Auto-update live matches"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "push", "origin", "main"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         log("🚀 Pushed updated 'matches.json' to GitHub repository!")
-    except Exception:
-        # Silently pass if no changes to commit or git process completes with code 1
-        pass
+    except Exception as e:
+        log(f"⚠️ Git Push Notice: {e}")
 
 def parse_int(val, default=0):
     """Safely convert numbers, strings, or None to integer."""
