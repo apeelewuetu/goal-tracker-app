@@ -6,9 +6,18 @@ import subprocess
 import sys
 import io
 
-# Force stdout/stderr to output in UTF-8 (prevents emoji crashes on Windows)
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+# -------------------------------------------------------------------
+# Stream Encoding Configuration (UTF-8 Protection)
+# -------------------------------------------------------------------
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='backslashreplace')
+    else:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='backslashreplace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='backslashreplace')
+except Exception:
+    pass
 
 from datetime import datetime, timedelta
 
@@ -59,8 +68,8 @@ def push_to_github():
         subprocess.run(["git", "commit", "-m", "Auto-update live matches"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["git", "push", "origin", "main"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         log("🚀 Pushed updated 'matches.json' to GitHub repository!")
-    except Exception as e:
-        # Silently pass if no changes or git not configured
+    except Exception:
+        # Silently pass if no changes to commit or git process completes with code 1
         pass
 
 def parse_int(val, default=0):
